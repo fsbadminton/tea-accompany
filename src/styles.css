@@ -1,0 +1,385 @@
+:root {
+  font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+  color: #f3eee6;
+  background: #12100d;
+  --panel-bg: rgba(22, 18, 15, 0.42);
+  --panel-border: rgba(247, 237, 223, 0.14);
+  --panel-shadow: 0 0.5rem 0.8rem rgba(0, 0, 0, 0.18);
+  --text-soft: rgba(243, 238, 230, 0.76);
+  --ink: rgba(30, 26, 23, 0.88);
+  --ink-soft: rgba(54, 48, 43, 0.54);
+  --paper: #e8e1d5;
+  --paper-shade: #c9c1b5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  background: #12100d;
+}
+
+button,
+select {
+  font: inherit;
+}
+
+select option {
+  color: #111;
+}
+
+.app-shell {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top, rgba(255, 252, 246, 0.06), transparent 28%),
+    linear-gradient(180deg, rgba(7, 6, 5, 0.12), rgba(7, 6, 5, 0.58));
+}
+
+.immersive-toggle {
+  position: fixed;
+  top: 1.15rem;
+  right: 1.15rem;
+  z-index: 5;
+  border: 1px solid rgba(245, 235, 223, 0.16);
+  border-radius: 999px;
+  padding: 0.72rem 1rem;
+  color: #f3eee6;
+  background: rgba(19, 15, 12, 0.42);
+  box-shadow: 0 0.8rem 1.8rem rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(16px) saturate(110%);
+  cursor: pointer;
+  transition: background 180ms ease, transform 180ms ease, opacity 180ms ease;
+}
+
+.immersive-toggle:hover {
+  transform: translateY(-1px);
+  background: rgba(34, 27, 22, 0.6);
+}
+
+.app-overlay {
+  transition: opacity 240ms ease, visibility 240ms ease;
+}
+
+.app-shell.is-immersive .app-overlay,
+.app-shell.is-immersive .stage-copy {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.app-shell.is-immersive .immersive-toggle {
+  opacity: 0.42;
+}
+
+.app-shell.is-immersive .immersive-toggle:hover {
+  opacity: 1;
+}
+
+.main-stage.view-firstPerson .stage-copy,
+.main-stage.view-sideView .stage-copy,
+.main-stage.view-topView .stage-copy,
+.main-stage.view-orbitView .stage-copy {
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.main-stage {
+  position: relative;
+  min-height: 100vh;
+  padding: 7.7rem 2.4rem 2.4rem;
+  display: grid;
+  grid-template-columns: minmax(18rem, 24rem) 1fr;
+  align-items: end;
+  background: linear-gradient(180deg, rgba(23, 20, 17, 0.12), rgba(10, 8, 7, 0.68));
+}
+
+.scene-backdrop,
+.app-overlay {
+  position: absolute;
+  inset: 0;
+}
+
+.scene-backdrop {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 8%, rgba(255, 248, 236, 0.06), transparent 24%),
+    linear-gradient(180deg, rgba(15, 13, 11, 0.12), rgba(15, 13, 11, 0.42));
+  perspective: 1200px;
+}
+
+.main-stage.is-realistic .scene-backdrop {
+  background: #120d09;
+}
+
+.tea-scene-canvas {
+  position: absolute;
+  inset: 0;
+  filter: saturate(0.82) brightness(0.86) contrast(1.04);
+}
+
+.tea-scene-canvas canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+.scene-backdrop::before,
+.scene-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.scene-backdrop::before {
+  background:
+    linear-gradient(180deg, rgba(10, 8, 7, 0.12), rgba(10, 8, 7, 0.3) 34%, transparent 52%),
+    radial-gradient(circle at 50% 62%, rgba(255, 240, 214, 0.06), transparent 28%);
+}
+
+.scene-backdrop::after {
+  background:
+    linear-gradient(180deg, rgba(5, 4, 3, 0) 56%, rgba(5, 4, 3, 0.48) 86%, rgba(5, 4, 3, 0.7) 100%),
+    linear-gradient(90deg, rgba(8, 7, 6, 0.22), transparent 10%, transparent 90%, rgba(8, 7, 6, 0.28));
+}
+
+.stage-copy {
+  position: relative;
+  z-index: 1;
+  align-self: start;
+  max-width: 22rem;
+  margin-top: 7rem;
+  padding: 1.5rem 1.7rem;
+  background: linear-gradient(180deg, rgba(22, 18, 15, 0.26), rgba(22, 18, 15, 0.1));
+  border: 1px solid rgba(244, 235, 225, 0.08);
+  border-radius: 1.6rem;
+  backdrop-filter: blur(14px);
+}
+
+.eyebrow,
+.ambient-label,
+.dock-title,
+.select-field span {
+  margin: 0 0 0.5rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.stage-copy h1 {
+  margin: 0;
+  font-size: clamp(2.8rem, 7vw, 5.4rem);
+  line-height: 0.98;
+  font-weight: 500;
+}
+
+.scene-description,
+.ambient-summary,
+.dock-hint {
+  margin: 1rem 0 0;
+  color: rgba(243, 238, 230, 0.82);
+  line-height: 1.8;
+}
+
+.scene-tags,
+.accent-list,
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.scene-tags {
+  margin-top: 1.2rem;
+}
+
+.scene-tags span,
+.accent-list span {
+  padding: 0.42rem 0.78rem;
+  border-radius: 999px;
+  border: 1px solid rgba(246, 236, 224, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(243, 238, 230, 0.88);
+}
+
+.table-zone {
+  position: relative;
+  z-index: 1;
+  min-height: 16rem;
+}
+
+.main-stage.is-realistic .table-zone {
+  min-height: 0;
+}
+
+.top-bar,
+.ambient-info,
+.control-dock {
+  position: absolute;
+  z-index: 2;
+}
+
+.top-bar {
+  top: 1.3rem;
+  left: 1.3rem;
+  right: 1.3rem;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.select-field,
+.ambient-info,
+.dock-card {
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: blur(16px) saturate(108%);
+}
+
+.main-stage.is-realistic .select-field,
+.main-stage.is-realistic .ambient-info,
+.main-stage.is-realistic .dock-card {
+  background: rgba(18, 13, 10, 0.24);
+  border-color: rgba(245, 235, 223, 0.1);
+}
+
+.select-field {
+  display: flex;
+  flex-direction: column;
+  padding: 0.78rem 0.9rem;
+  border-radius: 1.3rem;
+}
+
+.select-field select {
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #f3eee6;
+}
+
+.select-field select:disabled {
+  opacity: 0.56;
+}
+
+.ambient-info {
+  left: 1.3rem;
+  bottom: 1.5rem;
+  max-width: 21rem;
+  padding: 1.05rem 1.15rem;
+  border-radius: 1.35rem;
+}
+
+.ambient-info h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+
+.ambient-summary {
+  margin-top: 0.4rem;
+}
+
+.accent-list {
+  margin-top: 0.95rem;
+}
+
+.control-dock {
+  right: 1.3rem;
+  bottom: 1.5rem;
+  width: min(24rem, calc(100vw - 2.6rem));
+  display: grid;
+  gap: 0.85rem;
+}
+
+.dock-card {
+  padding: 1rem 1rem 1.05rem;
+  border-radius: 1.35rem;
+}
+
+.dock-hint {
+  font-size: 0.88rem;
+  color: rgba(243, 238, 230, 0.62);
+}
+
+.chip,
+.toggle-button {
+  border: 1px solid rgba(245, 235, 223, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: #f3eee6;
+  padding: 0.62rem 0.92rem;
+  cursor: pointer;
+  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+.chip:hover,
+.toggle-button:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.chip.is-active {
+  border-color: rgba(245, 235, 223, 0.3);
+  background: rgba(255, 255, 255, 0.11);
+}
+
+@media (max-width: 1100px) {
+  .main-stage {
+    grid-template-columns: 1fr;
+    padding: 8.5rem 1.2rem 10rem;
+  }
+
+  .top-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stage-copy {
+    margin-top: 5.8rem;
+    max-width: 100%;
+  }
+
+  .ambient-info {
+    left: 1.2rem;
+    right: 1.2rem;
+    bottom: 10.7rem;
+    max-width: none;
+  }
+
+  .control-dock {
+    left: 1.2rem;
+    right: 1.2rem;
+    width: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .top-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .stage-copy h1 {
+    font-size: clamp(2.2rem, 12vw, 3.6rem);
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .immersive-toggle,
+  .app-overlay,
+  .chip,
+  .toggle-button {
+    transition: none;
+  }
+}
