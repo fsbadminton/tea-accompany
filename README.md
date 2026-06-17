@@ -1,4 +1,4 @@
-# Tea Company
+# Tea Accompany
 
 一个安静陪伴喝茶的 Web 场景应用。当前重点是窗边茶室：真实 3D 窗框、茶桌、茶盘、茶具，以及可切换时间、天气、视角和沉浸观察模式。
 
@@ -14,8 +14,8 @@
 ## macOS 本地运行
 
 ```bash
-git clone https://github.com/fsbadminton/tea-company.git
-cd tea-company
+git clone https://github.com/fsbadminton/tea-accompany.git
+cd tea-accompany
 npm install
 npm run dev
 ```
