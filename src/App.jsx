@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { SCENE_CONFIG } from "./data/scenes";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { SCENE_CONFIG, WELCOME_QUOTES } from "./data/scenes";
 import { MainStage } from "./components/MainStage";
 import { TopBar } from "./components/TopBar";
 import { ControlDock } from "./components/ControlDock";
 import { AmbientInfo } from "./components/AmbientInfo";
+import { WelcomeOverlay } from "./components/WelcomeOverlay";
 
 const getTimeSlotFromHour = (hour) => {
   if (hour >= 5 && hour < 9) return "dawn";
@@ -24,7 +25,25 @@ function App() {
   const [immersiveMode, setImmersiveMode] = useState(false);
   const [activeGesture, setActiveGesture] = useState("pour");
   const [clockTime, setClockTime] = useState(new Date());
+  const [sceneTransition, setSceneTransition] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(() => {
+    try { return !sessionStorage.getItem("tea-welcomed"); } catch { return true; }
+  });
   const audioRef = useRef(null);
+
+  const handleSceneChange = useCallback((newSceneId) => {
+    if (newSceneId === sceneId) return;
+    setSceneTransition(true);
+    setTimeout(() => {
+      setSceneId(newSceneId);
+      setTimeout(() => setSceneTransition(false), 250);
+    }, 200);
+  }, [sceneId]);
+
+  const handleWelcomeDismiss = useCallback(() => {
+    setShowWelcome(false);
+    try { sessionStorage.setItem("tea-welcomed", "1"); } catch { /* ignore */ }
+  }, []);
 
   useEffect(() => {
     if (timeMode !== "auto") return undefined;
@@ -129,8 +148,17 @@ function App() {
     };
   }, [audioEnabled, sceneId, weather]);
 
+  const welcomeQuote = useMemo(() => {
+    const quotes = WELCOME_QUOTES[currentTimeSlot] || WELCOME_QUOTES.day;
+    return quotes[Math.floor(Math.random() * quotes.length)];
+  }, [currentTimeSlot]);
+
   return (
     <div className={`app-shell ${immersiveMode ? "is-immersive" : ""}`}>
+      {showWelcome && (
+        <WelcomeOverlay quote={welcomeQuote} onDismiss={handleWelcomeDismiss} />
+      )}
+
       <MainStage
         scene={currentScene}
         weather={weather}
@@ -141,6 +169,7 @@ function App() {
         activeGesture={activeGesture}
         mood={derivedMood}
         audioEnabled={audioEnabled}
+        sceneTransition={sceneTransition}
       />
 
       <button
@@ -159,7 +188,7 @@ function App() {
           weather={weather}
           occupancy={occupancy}
           perspective={perspective}
-          onSceneChange={setSceneId}
+          onSceneChange={handleSceneChange}
           onTimeModeChange={setTimeMode}
           onManualTimeChange={setManualTime}
           onWeatherChange={setWeather}

@@ -38,7 +38,24 @@ function CameraRig({ perspective, sceneId }) {
   return null;
 }
 
-function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#7c5538", tray = "#b48358" }) {
+function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#7c5538", tray = "#b48358", activeGesture }) {
+  const gaiwanRef = useRef(null);
+  const isPouring = activeGesture === "pour";
+  const pourAngle = useRef(0);
+
+  useFrame((_, delta) => {
+    if (!gaiwanRef.current) return;
+    if (isPouring) {
+      pourAngle.current += delta * 0.8;
+      gaiwanRef.current.rotation.z = Math.sin(pourAngle.current) * 0.28;
+    } else {
+      gaiwanRef.current.rotation.z *= 0.94;
+      if (Math.abs(gaiwanRef.current.rotation.z) < 0.005) {
+        gaiwanRef.current.rotation.z = 0;
+      }
+    }
+  });
+
   return (
     <Float speed={1.2} rotationIntensity={0.02} floatIntensity={0.06}>
       <group position={position}>
@@ -57,20 +74,25 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#7c5538", tray = "#b4835
           <meshStandardMaterial color={tray} roughness={0.65} />
         </mesh>
 
-        <mesh position={[-0.1, 0.6, -0.02]}>
-          <cylinderGeometry args={[0.16, 0.2, 0.2, 24]} />
-          <meshStandardMaterial color="#ece4d8" roughness={0.25} />
-        </mesh>
+        <group ref={gaiwanRef} position={[-0.1, 0.6, -0.02]}>
+          <mesh>
+            <cylinderGeometry args={[0.16, 0.2, 0.2, 24]} />
+            <meshStandardMaterial color="#ece4d8" roughness={0.25} />
+          </mesh>
+          <SteamParticles position={[0, 0.14, 0]} count={20} spread={0.08} riseSpeed={0.08} size={0.04} opacity={0.15} />
+        </group>
 
         <mesh position={[0.3, 0.57, 0]}>
           <cylinderGeometry args={[0.08, 0.1, 0.16, 24]} />
           <meshStandardMaterial color="#efe6dc" roughness={0.18} />
         </mesh>
+        <SteamParticles position={[0.3, 0.7, 0]} count={10} spread={0.04} riseSpeed={0.06} size={0.03} opacity={0.1} />
 
         <mesh position={[-0.45, 0.54, 0.08]}>
           <cylinderGeometry args={[0.07, 0.08, 0.09, 20]} />
           <meshStandardMaterial color="#f5ede3" roughness={0.2} />
         </mesh>
+        <GestureGlowRing active={activeGesture === "serve"} position={[-0.45, 0.55, 0.08]} />
 
         <mesh position={[0.02, 0.54, 0.18]}>
           <cylinderGeometry args={[0.07, 0.08, 0.09, 20]} />
@@ -158,6 +180,77 @@ function FirstPersonTeaFocus({ active, sceneId }) {
         <meshStandardMaterial color="#d6c6b8" roughness={0.35} />
       </mesh>
     </group>
+  );
+}
+
+function PourEffect({ active, teapotPosition = [0.78, 0.16, -0.08] }) {
+  const teapotRef = useRef(null);
+  const pouring = useRef(false);
+  const angle = useRef(0);
+
+  useFrame((state, delta) => {
+    if (!teapotRef.current) return;
+    if (active) {
+      pouring.current = true;
+    }
+    if (pouring.current) {
+      angle.current += delta * 0.8;
+      const tilt = Math.sin(angle.current) * 0.35;
+      teapotRef.current.rotation.z = active ? tilt : tilt * Math.max(0, 1 - (angle.current % 6));
+      if (!active && angle.current % (Math.PI * 2) > Math.PI * 1.8) {
+        pouring.current = false;
+        teapotRef.current.rotation.z = 0;
+        angle.current = 0;
+      }
+    }
+  });
+
+  return (
+    <group ref={teapotRef} position={teapotPosition}>
+      <mesh castShadow>
+        <sphereGeometry args={[0.22, 24, 16]} />
+        <meshStandardMaterial color="#2e2620" roughness={0.42} />
+      </mesh>
+      <mesh position={[0, 0.22, 0]}>
+        <cylinderGeometry args={[0.08, 0.12, 0.08, 24]} />
+        <meshStandardMaterial color="#1f1915" roughness={0.5} />
+      </mesh>
+      <mesh position={[0.3, 0.02, -0.01]} rotation={[0, 0, Math.PI / 2]}>
+        <torusGeometry args={[0.15, 0.025, 10, 24]} />
+        <meshStandardMaterial color="#2b211b" roughness={0.5} />
+      </mesh>
+      <mesh position={[-0.28, 0.03, 0]} rotation={[0, 0.15, -0.4]}>
+        <coneGeometry args={[0.08, 0.42, 18]} />
+        <meshStandardMaterial color="#2b211b" roughness={0.5} />
+      </mesh>
+      {active && (
+        <mesh position={[-0.28, -0.15, 0]} rotation={[0, 0.15, -0.4]}>
+          <cylinderGeometry args={[0.012, 0.02, 0.25, 8]} />
+          <meshStandardMaterial color="#d4c4a8" transparent opacity={0.5} emissive="#c8b898" emissiveIntensity={0.3} />
+        </mesh>
+      )}
+    </group>
+  );
+}
+
+function GestureGlowRing({ active, position = [0, 0, 0] }) {
+  const ringRef = useRef(null);
+
+  useFrame((state) => {
+    if (!ringRef.current) return;
+    if (active) {
+      ringRef.current.material.opacity = 0.15 + Math.sin(state.clock.elapsedTime * 3) * 0.1;
+      ringRef.current.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 2) * 0.08);
+    } else {
+      ringRef.current.material.opacity = 0;
+    }
+  });
+
+  return (
+    <mesh ref={ringRef} position={position} rotation={[-Math.PI / 2, 0, 0]}>
+      <ringGeometry args={[0.12, 0.18, 32]} />
+      <meshStandardMaterial color="#e8d5b8" transparent opacity={0} emissive="#d4b896" emissiveIntensity={0.6} side={THREE.DoubleSide} depthWrite={false} />
+    </mesh>
   );
 }
 
@@ -265,6 +358,51 @@ function FloatingMotes({ color = "#ffffff", count = 160, area = [10, 4, 8], spee
         />
       </bufferGeometry>
       <pointsMaterial color={color} size={size} transparent opacity={0.32} />
+    </points>
+  );
+}
+
+function SteamParticles({ position = [0, 0.5, 0], count = 40, spread = 0.15, riseSpeed = 0.12, size = 0.06, opacity = 0.2, visible = true }) {
+  const pointsRef = useRef(null);
+  const posArray = useMemo(() => {
+    const values = new Float32Array(count * 3);
+    for (let i = 0; i < count; i += 1) {
+      values[i * 3] = (Math.random() - 0.5) * spread;
+      values[i * 3 + 1] = Math.random() * 0.4;
+      values[i * 3 + 2] = (Math.random() - 0.5) * spread;
+    }
+    return values;
+  }, [count, spread]);
+
+  useFrame((state, delta) => {
+    if (!pointsRef.current || !visible) return;
+    const geo = pointsRef.current.geometry;
+    const pos = geo.attributes.position;
+    for (let i = 0; i < count; i += 1) {
+      pos.array[i * 3 + 1] += riseSpeed * delta;
+      pos.array[i * 3] += Math.sin(state.clock.elapsedTime * 2 + i) * 0.001;
+      if (pos.array[i * 3 + 1] > 0.5) {
+        pos.array[i * 3] = (Math.random() - 0.5) * spread;
+        pos.array[i * 3 + 1] = 0;
+        pos.array[i * 3 + 2] = (Math.random() - 0.5) * spread;
+      }
+    }
+    pos.needsUpdate = true;
+  });
+
+  if (!visible) return null;
+
+  return (
+    <points ref={pointsRef} position={position}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          count={count}
+          array={posArray}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <pointsMaterial color="#f5ede3" size={size} transparent opacity={opacity} depthWrite={false} />
     </points>
   );
 }
@@ -749,7 +887,7 @@ function WaterRipples({ color }) {
   );
 }
 
-function RectTeaTable3D() {
+function RectTeaTable3D({ activeGesture }) {
   return (
     <Float speed={0.7} rotationIntensity={0.008} floatIntensity={0.025}>
       <group position={[0, -0.23, 0.12]}>
@@ -771,16 +909,33 @@ function RectTeaTable3D() {
             <meshStandardMaterial color="#432918" roughness={0.84} />
           </mesh>
         ))}
-        <TeaSetOnTray />
+        <TeaSetOnTray activeGesture={activeGesture} />
       </group>
     </Float>
   );
 }
 
-function TeaSetOnTray() {
+function TeaSetOnTray({ activeGesture }) {
+  const isPouring = activeGesture === "pour";
+  const teapotGroupRef = useRef(null);
+  const pourAngle = useRef(0);
+
+  useFrame((_, delta) => {
+    if (!teapotGroupRef.current) return;
+    if (isPouring) {
+      pourAngle.current += delta * 0.8;
+      teapotGroupRef.current.rotation.z = Math.sin(pourAngle.current) * 0.32;
+    } else {
+      teapotGroupRef.current.rotation.z *= 0.94;
+      if (Math.abs(teapotGroupRef.current.rotation.z) < 0.005) {
+        teapotGroupRef.current.rotation.z = 0;
+      }
+    }
+  });
+
   return (
     <group position={[0, 0.58, -0.08]}>
-      <group position={[0.78, 0.16, -0.08]}>
+      <group ref={teapotGroupRef} position={[0.78, 0.16, -0.08]}>
         <mesh castShadow>
           <sphereGeometry args={[0.22, 24, 16]} />
           <meshStandardMaterial color="#2e2620" roughness={0.42} />
@@ -797,6 +952,7 @@ function TeaSetOnTray() {
           <coneGeometry args={[0.08, 0.42, 18]} />
           <meshStandardMaterial color="#2b211b" roughness={0.5} />
         </mesh>
+        <SteamParticles position={[0, 0.28, 0]} count={30} spread={0.1} riseSpeed={0.1} size={0.05} opacity={0.18} />
       </group>
 
       <group position={[-0.05, 0.14, -0.06]}>
@@ -808,6 +964,7 @@ function TeaSetOnTray() {
           <torusGeometry args={[0.12, 0.018, 10, 22]} />
           <meshStandardMaterial color="#cbb9a5" roughness={0.28} />
         </mesh>
+        <SteamParticles position={[0, 0.22, 0]} count={20} spread={0.08} riseSpeed={0.08} size={0.04} opacity={0.14} />
       </group>
 
       {[[-0.72, 0.07, 0.2], [-0.34, 0.07, 0.28], [0.27, 0.07, 0.27], [0.55, 0.07, 0.22]].map((position, index) => (
@@ -820,6 +977,8 @@ function TeaSetOnTray() {
             <cylinderGeometry args={[0.088, 0.094, 0.015, 24]} />
             <meshStandardMaterial color="#9f6f3e" emissive="#6e3f1f" emissiveIntensity={0.05} roughness={0.4} />
           </mesh>
+          <SteamParticles position={[0, 0.1, 0]} count={12} spread={0.05} riseSpeed={0.06} size={0.03} opacity={0.1} />
+          <GestureGlowRing active={activeGesture === "serve" && index === 0} position={[0, 0.02, 0]} />
         </group>
       ))}
     </group>
@@ -845,7 +1004,7 @@ function SharedLighting({ mood, intensity = 1.5, spotColor = "#f9ead8", fogRange
   );
 }
 
-function LakesideScene({ mood, weather, perspective }) {
+function LakesideScene({ mood, weather, perspective, activeGesture }) {
   return (
     <>
       <SharedLighting mood={mood} intensity={1.6} />
@@ -858,7 +1017,7 @@ function LakesideScene({ mood, weather, perspective }) {
       <Mountain position={[0.8, 1.35, -8.2]} scale={[2.8, 3.2, 2.7]} color="#778d8c" />
       <Mountain position={[5.7, 1, -7.5]} scale={[2.2, 2.4, 2.2]} color="#69807d" />
       <Pavilion />
-      <TeaTable3D />
+      <TeaTable3D activeGesture={activeGesture} />
       <SilhouetteGuests perspective={perspective} sceneId="lakeside" />
       <FirstPersonTeaFocus active={perspective === "firstPerson"} sceneId="lakeside" />
       <FirstPersonHands active={perspective === "firstPerson"} />
@@ -870,7 +1029,7 @@ function LakesideScene({ mood, weather, perspective }) {
   );
 }
 
-function CourtyardScene({ mood, weather, perspective }) {
+function CourtyardScene({ mood, weather, perspective, activeGesture }) {
   return (
     <>
       <SharedLighting mood={mood} intensity={1.25} spotColor="#e7dccf" />
@@ -885,7 +1044,7 @@ function CourtyardScene({ mood, weather, perspective }) {
       <Mountain position={[-6.2, 1.4, -7.5]} scale={[2.8, 3.4, 2.8]} color="#58685e" />
       <Mountain position={[0.2, 1.8, -8.4]} scale={[3.4, 4.2, 3.4]} color="#65766b" />
       <Mountain position={[6.1, 1.2, -7.1]} scale={[2.4, 3, 2.4]} color="#536157" />
-      <TeaTable3D position={[0, 0.18, 0.6]} wood="#70513b" tray="#ae845d" />
+      <TeaTable3D position={[0, 0.18, 0.6]} wood="#70513b" tray="#ae845d" activeGesture={activeGesture} />
       <SilhouetteGuests perspective={perspective} sceneId="courtyard" />
       <FirstPersonTeaFocus active={perspective === "firstPerson"} sceneId="courtyard" />
       <FirstPersonHands active={perspective === "firstPerson"} />
@@ -897,14 +1056,14 @@ function CourtyardScene({ mood, weather, perspective }) {
   );
 }
 
-function TearoomScene({ mood, weather, perspective }) {
+function TearoomScene({ mood, weather, perspective, activeGesture }) {
   return (
     <>
       <SharedLighting mood={mood} intensity={1.18} spotColor="#efd2ad" fogRange={[10, 24]} />
       <TearoomShell />
       <WindowLandscape weather={weather} />
       <WindowRainSheet visible={weather === "rain"} />
-      <RectTeaTable3D />
+      <RectTeaTable3D activeGesture={activeGesture} />
       <SilhouetteGuests perspective={perspective} sceneId="tearoom" />
       <FirstPersonHands active={perspective === "firstPerson"} />
       <RainParticles visible={weather === "rain"} area={[6.5, 4.6, 3.2]} size={0.026} opacity={0.34} />
@@ -914,19 +1073,19 @@ function TearoomScene({ mood, weather, perspective }) {
   );
 }
 
-function SceneContent({ sceneId, mood, weather, perspective }) {
+function SceneContent({ sceneId, mood, weather, perspective, activeGesture, tableStyle }) {
   if (sceneId === "courtyard") {
-    return <CourtyardScene mood={mood} weather={weather} perspective={perspective} />;
+    return <CourtyardScene mood={mood} weather={weather} perspective={perspective} activeGesture={activeGesture} tableStyle={tableStyle} />;
   }
 
   if (sceneId === "tearoom") {
-    return <TearoomScene mood={mood} weather={weather} perspective={perspective} />;
+    return <TearoomScene mood={mood} weather={weather} perspective={perspective} activeGesture={activeGesture} tableStyle={tableStyle} />;
   }
 
-  return <LakesideScene mood={mood} weather={weather} perspective={perspective} />;
+  return <LakesideScene mood={mood} weather={weather} perspective={perspective} activeGesture={activeGesture} tableStyle={tableStyle} />;
 }
 
-export function TeaSceneCanvas({ scene, weather, perspective, mood }) {
+export function TeaSceneCanvas({ scene, weather, perspective, mood, activeGesture, tableStyle }) {
   return (
     <div className="tea-scene-canvas">
       <Canvas shadows camera={{ position: [0, 1.25, 5.6], fov: 42 }}>
@@ -936,6 +1095,8 @@ export function TeaSceneCanvas({ scene, weather, perspective, mood }) {
           weather={weather}
           perspective={perspective}
           mood={mood}
+          activeGesture={activeGesture}
+          tableStyle={tableStyle}
         />
         {perspective !== "orbitView" ? null : (
           <OrbitControls

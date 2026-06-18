@@ -20,7 +20,7 @@ const perspectiveLabels = {
   orbitView: "环视",
 };
 
-export function MainStage({ scene, weather, timeSlot, perspective, mood, audioEnabled }) {
+export function MainStage({ scene, weather, timeSlot, perspective, mood, audioEnabled, activeGesture, tableStyle, sceneTransition }) {
   const viewClass = perspective === "firstPerson" ? "is-first-person" : "is-observing";
 
   return (
@@ -35,8 +35,9 @@ export function MainStage({ scene, weather, timeSlot, perspective, mood, audioEn
         "--accent-c": scene.palette[2],
       }}
     >
+      {sceneTransition && <div className="scene-transition-overlay" />}
       <div className="scene-backdrop">
-        <TeaSceneCanvas scene={scene} weather={weather} timeSlot={timeSlot} perspective={perspective} mood={mood} />
+        <TeaSceneCanvas scene={scene} weather={weather} timeSlot={timeSlot} perspective={perspective} mood={mood} activeGesture={activeGesture} tableStyle={tableStyle} />
       </div>
 
       <section className="stage-copy">

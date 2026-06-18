@@ -375,11 +375,129 @@ select option {
 
 }
 
+/* Scene transition overlay */
+.scene-transition-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: #12100d;
+  pointer-events: none;
+  animation: sceneFade 450ms ease-in-out;
+}
+
+@keyframes sceneFade {
+  0% { opacity: 0; }
+  35% { opacity: 1; }
+  65% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Ambient mood quote */
+.ambient-quote {
+  margin: 0.5rem 0 0;
+  font-size: 0.88rem;
+  color: rgba(243, 238, 230, 0.62);
+  line-height: 1.65;
+  font-style: italic;
+}
+
+/* Welcome overlay */
+.welcome-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 50% 40%, rgba(60, 48, 36, 0.6), transparent 60%),
+    linear-gradient(180deg, rgba(18, 16, 13, 0.92), rgba(12, 10, 8, 0.98));
+  backdrop-filter: blur(24px) saturate(120%);
+  animation: welcomeIn 800ms ease-out;
+  transition: opacity 600ms ease, visibility 600ms ease;
+}
+
+.welcome-overlay.is-fading {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@keyframes welcomeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.welcome-content {
+  text-align: center;
+  max-width: 28rem;
+  padding: 2rem;
+  animation: welcomeContentIn 1000ms ease-out 200ms both;
+}
+
+@keyframes welcomeContentIn {
+  0% { opacity: 0; transform: translateY(1.5rem); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.welcome-eyebrow {
+  margin: 0 0 1.2rem;
+  font-size: 0.82rem;
+  letter-spacing: 0.42em;
+  color: rgba(243, 238, 230, 0.5);
+  text-transform: uppercase;
+}
+
+.welcome-title {
+  margin: 0;
+  font-size: clamp(3.2rem, 10vw, 6rem);
+  font-weight: 400;
+  line-height: 1;
+  color: #f3eee6;
+  letter-spacing: 0.12em;
+}
+
+.welcome-quote {
+  margin: 2rem 0 2.8rem;
+  font-size: 1.1rem;
+  line-height: 1.9;
+  color: rgba(243, 238, 230, 0.72);
+}
+
+.welcome-enter {
+  display: inline-block;
+  border: 1px solid rgba(245, 235, 223, 0.22);
+  border-radius: 999px;
+  padding: 0.9rem 2.4rem;
+  color: #f3eee6;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 1rem;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  transition: background 200ms ease, transform 200ms ease, border-color 200ms ease;
+}
+
+.welcome-enter:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(245, 235, 223, 0.36);
+  transform: translateY(-2px);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .immersive-toggle,
   .app-overlay,
   .chip,
   .toggle-button {
+    transition: none;
+  }
+
+  .welcome-overlay,
+  .welcome-content,
+  .scene-transition-overlay {
+    animation: none;
+  }
+
+  .welcome-enter {
     transition: none;
   }
 }
