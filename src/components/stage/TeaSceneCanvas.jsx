@@ -38,7 +38,7 @@ function CameraRig({ perspective, sceneId }) {
   return null;
 }
 
-function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#7c5538", tray = "#b48358", activeGesture }) {
+function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#7c5538", tray = "#b48358", activeGesture, tableStyle }) {
   const gaiwanRef = useRef(null);
   const isPouring = activeGesture === "pour";
   const pourAngle = useRef(0);
@@ -94,10 +94,12 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#7c5538", tray = "#b4835
         </mesh>
         <GestureGlowRing active={activeGesture === "serve"} position={[-0.45, 0.55, 0.08]} />
 
-        <mesh position={[0.02, 0.54, 0.18]}>
-          <cylinderGeometry args={[0.07, 0.08, 0.09, 20]} />
-          <meshStandardMaterial color="#f5ede3" roughness={0.2} />
-        </mesh>
+        {tableStyle === "full" && (
+          <mesh position={[0.02, 0.54, 0.18]}>
+            <cylinderGeometry args={[0.07, 0.08, 0.09, 20]} />
+            <meshStandardMaterial color="#f5ede3" roughness={0.2} />
+          </mesh>
+        )}
       </group>
     </Float>
   );
@@ -254,7 +256,7 @@ function GestureGlowRing({ active, position = [0, 0, 0] }) {
   );
 }
 
-function SilhouetteGuests({ perspective, sceneId }) {
+function SilhouetteGuests({ perspective, sceneId, occupancy }) {
   if (perspective === "firstPerson") return null;
 
   const layout = {
@@ -276,10 +278,11 @@ function SilhouetteGuests({ perspective, sceneId }) {
   };
 
   const seats = layout[sceneId] ?? layout.lakeside;
+  const count = occupancy === "solo" ? 1 : occupancy === "duo" ? 2 : 3;
 
   return (
     <group>
-      {seats.map((position, index) => (
+      {seats.slice(0, count).map((position, index) => (
         <group key={index} position={position}>
           <mesh position={[0, 0.5, 0]}>
             <sphereGeometry args={[0.18, 18, 18]} />
@@ -887,7 +890,7 @@ function WaterRipples({ color }) {
   );
 }
 
-function RectTeaTable3D({ activeGesture }) {
+function RectTeaTable3D({ activeGesture, tableStyle }) {
   return (
     <Float speed={0.7} rotationIntensity={0.008} floatIntensity={0.025}>
       <group position={[0, -0.23, 0.12]}>
@@ -909,13 +912,13 @@ function RectTeaTable3D({ activeGesture }) {
             <meshStandardMaterial color="#432918" roughness={0.84} />
           </mesh>
         ))}
-        <TeaSetOnTray activeGesture={activeGesture} />
+        <TeaSetOnTray activeGesture={activeGesture} tableStyle={tableStyle} />
       </group>
     </Float>
   );
 }
 
-function TeaSetOnTray({ activeGesture }) {
+function TeaSetOnTray({ activeGesture, tableStyle }) {
   const isPouring = activeGesture === "pour";
   const teapotGroupRef = useRef(null);
   const pourAngle = useRef(0);
@@ -967,7 +970,7 @@ function TeaSetOnTray({ activeGesture }) {
         <SteamParticles position={[0, 0.22, 0]} count={20} spread={0.08} riseSpeed={0.08} size={0.04} opacity={0.14} />
       </group>
 
-      {[[-0.72, 0.07, 0.2], [-0.34, 0.07, 0.28], [0.27, 0.07, 0.27], [0.55, 0.07, 0.22]].map((position, index) => (
+      {[[-0.72, 0.07, 0.2], [-0.34, 0.07, 0.28], [0.27, 0.07, 0.27], [0.55, 0.07, 0.22]].slice(0, tableStyle === "full" ? 4 : 2).map((position, index) => (
         <group key={index} position={position}>
           <mesh castShadow>
             <cylinderGeometry args={[0.105, 0.13, 0.14, 24]} />
@@ -1004,7 +1007,7 @@ function SharedLighting({ mood, intensity = 1.5, spotColor = "#f9ead8", fogRange
   );
 }
 
-function LakesideScene({ mood, weather, perspective, activeGesture }) {
+function LakesideScene({ mood, weather, perspective, activeGesture, tableStyle, occupancy }) {
   return (
     <>
       <SharedLighting mood={mood} intensity={1.6} />
@@ -1017,11 +1020,15 @@ function LakesideScene({ mood, weather, perspective, activeGesture }) {
       <Mountain position={[0.8, 1.35, -8.2]} scale={[2.8, 3.2, 2.7]} color="#778d8c" />
       <Mountain position={[5.7, 1, -7.5]} scale={[2.2, 2.4, 2.2]} color="#69807d" />
       <Pavilion />
-      <TeaTable3D activeGesture={activeGesture} />
-      <SilhouetteGuests perspective={perspective} sceneId="lakeside" />
-      <FirstPersonTeaFocus active={perspective === "firstPerson"} sceneId="lakeside" />
-      <FirstPersonHands active={perspective === "firstPerson"} />
-      <FirstPersonCup />
+      <TeaTable3D activeGesture={activeGesture} tableStyle={tableStyle} />
+      <SilhouetteGuests perspective={perspective} sceneId="lakeside" occupancy={occupancy} />
+      {perspective === "firstPerson" && (
+        <>
+          <FirstPersonTeaFocus active sceneId="lakeside" />
+          <FirstPersonHands active />
+          <FirstPersonCup />
+        </>
+      )}
       <RainParticles visible={weather === "rain"} />
       <FloatingMotes color="#f9f4ea" count={140} area={[11, 3.4, 10]} speed={0.08} size={0.05} />
       <Environment preset="sunset" />
@@ -1029,7 +1036,7 @@ function LakesideScene({ mood, weather, perspective, activeGesture }) {
   );
 }
 
-function CourtyardScene({ mood, weather, perspective, activeGesture }) {
+function CourtyardScene({ mood, weather, perspective, activeGesture, tableStyle, occupancy }) {
   return (
     <>
       <SharedLighting mood={mood} intensity={1.25} spotColor="#e7dccf" />
@@ -1044,11 +1051,15 @@ function CourtyardScene({ mood, weather, perspective, activeGesture }) {
       <Mountain position={[-6.2, 1.4, -7.5]} scale={[2.8, 3.4, 2.8]} color="#58685e" />
       <Mountain position={[0.2, 1.8, -8.4]} scale={[3.4, 4.2, 3.4]} color="#65766b" />
       <Mountain position={[6.1, 1.2, -7.1]} scale={[2.4, 3, 2.4]} color="#536157" />
-      <TeaTable3D position={[0, 0.18, 0.6]} wood="#70513b" tray="#ae845d" activeGesture={activeGesture} />
-      <SilhouetteGuests perspective={perspective} sceneId="courtyard" />
-      <FirstPersonTeaFocus active={perspective === "firstPerson"} sceneId="courtyard" />
-      <FirstPersonHands active={perspective === "firstPerson"} />
-      <FirstPersonCup />
+      <TeaTable3D position={[0, 0.18, 0.6]} wood="#70513b" tray="#ae845d" activeGesture={activeGesture} tableStyle={tableStyle} />
+      <SilhouetteGuests perspective={perspective} sceneId="courtyard" occupancy={occupancy} />
+      {perspective === "firstPerson" && (
+        <>
+          <FirstPersonTeaFocus active sceneId="courtyard" />
+          <FirstPersonHands active />
+          <FirstPersonCup />
+        </>
+      )}
       <RainParticles visible={weather === "rain"} area={[11, 7.5, 11]} />
       <FloatingMotes color="#dfe8dd" count={120} area={[9, 4, 9]} speed={0.11} size={0.04} />
       <Environment preset="city" />
@@ -1056,16 +1067,16 @@ function CourtyardScene({ mood, weather, perspective, activeGesture }) {
   );
 }
 
-function TearoomScene({ mood, weather, perspective, activeGesture }) {
+function TearoomScene({ mood, weather, perspective, activeGesture, tableStyle, occupancy }) {
   return (
     <>
       <SharedLighting mood={mood} intensity={1.18} spotColor="#efd2ad" fogRange={[10, 24]} />
       <TearoomShell />
       <WindowLandscape weather={weather} />
       <WindowRainSheet visible={weather === "rain"} />
-      <RectTeaTable3D activeGesture={activeGesture} />
-      <SilhouetteGuests perspective={perspective} sceneId="tearoom" />
-      <FirstPersonHands active={perspective === "firstPerson"} />
+      <RectTeaTable3D activeGesture={activeGesture} tableStyle={tableStyle} />
+      <SilhouetteGuests perspective={perspective} sceneId="tearoom" occupancy={occupancy} />
+      {perspective === "firstPerson" && <FirstPersonHands active />}
       <RainParticles visible={weather === "rain"} area={[6.5, 4.6, 3.2]} size={0.026} opacity={0.34} />
       <FloatingMotes color="#f4e2cb" count={180} area={[7.2, 3.2, 4.5]} speed={0.1} size={0.038} />
       <Environment preset="warehouse" />
@@ -1073,19 +1084,21 @@ function TearoomScene({ mood, weather, perspective, activeGesture }) {
   );
 }
 
-function SceneContent({ sceneId, mood, weather, perspective, activeGesture, tableStyle }) {
+function SceneContent({ sceneId, mood, weather, perspective, activeGesture, tableStyle, occupancy }) {
+  const sceneProps = { mood, weather, perspective, activeGesture, tableStyle, occupancy };
+
   if (sceneId === "courtyard") {
-    return <CourtyardScene mood={mood} weather={weather} perspective={perspective} activeGesture={activeGesture} tableStyle={tableStyle} />;
+    return <CourtyardScene {...sceneProps} />;
   }
 
   if (sceneId === "tearoom") {
-    return <TearoomScene mood={mood} weather={weather} perspective={perspective} activeGesture={activeGesture} tableStyle={tableStyle} />;
+    return <TearoomScene {...sceneProps} />;
   }
 
-  return <LakesideScene mood={mood} weather={weather} perspective={perspective} activeGesture={activeGesture} tableStyle={tableStyle} />;
+  return <LakesideScene {...sceneProps} />;
 }
 
-export function TeaSceneCanvas({ scene, weather, perspective, mood, activeGesture, tableStyle }) {
+export function TeaSceneCanvas({ scene, weather, perspective, mood, activeGesture, tableStyle, occupancy }) {
   return (
     <div className="tea-scene-canvas">
       <Canvas shadows camera={{ position: [0, 1.25, 5.6], fov: 42 }}>
@@ -1097,6 +1110,7 @@ export function TeaSceneCanvas({ scene, weather, perspective, mood, activeGestur
           mood={mood}
           activeGesture={activeGesture}
           tableStyle={tableStyle}
+          occupancy={occupancy}
         />
         {perspective !== "orbitView" ? null : (
           <OrbitControls

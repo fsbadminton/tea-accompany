@@ -29,7 +29,7 @@ export function ControlDock({
       <div className="dock-card">
         <p className="dock-title">环境音</p>
         <button type="button" className="toggle-button" onClick={onAudioToggle}>
-          {audioEnabled ? "打开声音" : "关闭声音"}
+          {audioEnabled ? "关闭声音" : "打开声音"}
         </button>
         <p className="dock-hint">雨声、风声和房间底噪会随场景变化。</p>
       </div>

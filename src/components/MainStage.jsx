@@ -1,26 +1,7 @@
 import { TeaSceneCanvas } from "./stage/TeaSceneCanvas";
+import { LABELS } from "../data/scenes";
 
-const weatherLabels = {
-  clear: "晴",
-  overcast: "阴",
-  rain: "雨",
-};
-
-const timeLabels = {
-  dawn: "清晨",
-  day: "白日",
-  dusk: "黄昏",
-  night: "夜晚",
-};
-
-const perspectiveLabels = {
-  firstPerson: "第一人称",
-  sideView: "侧坐",
-  topView: "俯看茶席",
-  orbitView: "环视",
-};
-
-export function MainStage({ scene, weather, timeSlot, perspective, mood, audioEnabled, activeGesture, tableStyle, sceneTransition }) {
+export function MainStage({ scene, weather, timeSlot, perspective, mood, audioEnabled, activeGesture, tableStyle, sceneTransition, occupancy }) {
   const viewClass = perspective === "firstPerson" ? "is-first-person" : "is-observing";
 
   return (
@@ -37,7 +18,7 @@ export function MainStage({ scene, weather, timeSlot, perspective, mood, audioEn
     >
       {sceneTransition && <div className="scene-transition-overlay" />}
       <div className="scene-backdrop">
-        <TeaSceneCanvas scene={scene} weather={weather} timeSlot={timeSlot} perspective={perspective} mood={mood} activeGesture={activeGesture} tableStyle={tableStyle} />
+        <TeaSceneCanvas scene={scene} weather={weather} timeSlot={timeSlot} perspective={perspective} mood={mood} activeGesture={activeGesture} tableStyle={tableStyle} occupancy={occupancy} />
       </div>
 
       <section className="stage-copy">
@@ -45,14 +26,12 @@ export function MainStage({ scene, weather, timeSlot, perspective, mood, audioEn
         <h1>{scene.name}</h1>
         <p className="scene-description">{scene.description}</p>
         <div className="scene-tags">
-          <span>{weatherLabels[weather]}</span>
-          <span>{timeLabels[timeSlot]}</span>
-          <span>{perspectiveLabels[perspective]}</span>
+          <span>{LABELS.weather[weather]}</span>
+          <span>{LABELS.timeSlot[timeSlot]}</span>
+          <span>{LABELS.perspective[perspective]}</span>
           <span>{audioEnabled ? "环境音开启" : "静音"}</span>
         </div>
       </section>
-
-      <section className="table-zone" />
     </main>
   );
 }

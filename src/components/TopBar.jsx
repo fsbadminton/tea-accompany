@@ -1,4 +1,4 @@
-import { CONTROL_OPTIONS } from "../data/scenes";
+import { CONTROL_OPTIONS, SCENE_CONFIG } from "../data/scenes";
 
 function SelectField({ label, value, onChange, options, disabled = false }) {
   return (
@@ -22,11 +22,7 @@ export function TopBar(props) {
         label="场景"
         value={props.sceneId}
         onChange={props.onSceneChange}
-        options={[
-          { value: "lakeside", label: "湖畔凉亭" },
-          { value: "courtyard", label: "山间雨院" },
-          { value: "tearoom", label: "窗边茶室" },
-        ]}
+        options={SCENE_CONFIG.map((s) => ({ value: s.id, label: s.name }))}
       />
 
       <SelectField

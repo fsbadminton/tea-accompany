@@ -36,7 +36,7 @@ function App() {
     setSceneTransition(true);
     setTimeout(() => {
       setSceneId(newSceneId);
-      setTimeout(() => setSceneTransition(false), 250);
+      setTimeout(() => setSceneTransition(false), 300);
     }, 200);
   }, [sceneId]);
 
@@ -149,9 +149,10 @@ function App() {
   }, [audioEnabled, sceneId, weather]);
 
   const welcomeQuote = useMemo(() => {
-    const quotes = WELCOME_QUOTES[currentTimeSlot] || WELCOME_QUOTES.day;
+    const initialSlot = getTimeSlotFromHour(new Date().getHours());
+    const quotes = WELCOME_QUOTES[initialSlot] || WELCOME_QUOTES.day;
     return quotes[Math.floor(Math.random() * quotes.length)];
-  }, [currentTimeSlot]);
+  }, []);
 
   return (
     <div className={`app-shell ${immersiveMode ? "is-immersive" : ""}`}>

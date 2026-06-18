@@ -117,10 +117,6 @@ select option {
   perspective: 1200px;
 }
 
-.main-stage.is-realistic .scene-backdrop {
-  background: #120d09;
-}
-
 .tea-scene-canvas {
   position: absolute;
   inset: 0;
@@ -213,16 +209,6 @@ select option {
   color: rgba(243, 238, 230, 0.88);
 }
 
-.table-zone {
-  position: relative;
-  z-index: 1;
-  min-height: 16rem;
-}
-
-.main-stage.is-realistic .table-zone {
-  min-height: 0;
-}
-
 .top-bar,
 .ambient-info,
 .control-dock {
@@ -246,13 +232,6 @@ select option {
   background: var(--panel-bg);
   box-shadow: var(--panel-shadow);
   backdrop-filter: blur(16px) saturate(108%);
-}
-
-.main-stage.is-realistic .select-field,
-.main-stage.is-realistic .ambient-info,
-.main-stage.is-realistic .dock-card {
-  background: rgba(18, 13, 10, 0.24);
-  border-color: rgba(245, 235, 223, 0.1);
 }
 
 .select-field {
@@ -382,13 +361,13 @@ select option {
   z-index: 10;
   background: #12100d;
   pointer-events: none;
-  animation: sceneFade 450ms ease-in-out;
+  animation: sceneFade 500ms ease-in-out forwards;
 }
 
 @keyframes sceneFade {
   0% { opacity: 0; }
-  35% { opacity: 1; }
-  65% { opacity: 1; }
+  40% { opacity: 1; }
+  60% { opacity: 1; }
   100% { opacity: 0; }
 }
 
