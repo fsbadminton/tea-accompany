@@ -45,24 +45,24 @@ export const CONTROL_OPTIONS = {
 
 const moodSet = {
   dawn: {
-    clear: { sky: "#f0a878", mist: "#e8d0b0", glow: "#f0c080" },
-    overcast: { sky: "#a09088", mist: "#c8c0b8", glow: "#d0c0a0" },
-    rain: { sky: "#708088", mist: "#a0a8a0", glow: "#909890" },
+    clear: { sky: "#f8b888", mist: "#f0dcc0", glow: "#f8d090" },
+    overcast: { sky: "#b0a098", mist: "#d8d0c8", glow: "#e0d0b0" },
+    rain: { sky: "#809098", mist: "#b0b8b0", glow: "#a0a8a0" },
   },
   day: {
-    clear: { sky: "#4ab8d8", mist: "#d0e8e0", glow: "#f0e8d0" },
-    overcast: { sky: "#788898", mist: "#b8c8c0", glow: "#d0c8b0" },
-    rain: { sky: "#5a7888", mist: "#90a8a0", glow: "#809080" },
+    clear: { sky: "#5ac8e8", mist: "#e0f0e8", glow: "#f8f0d8" },
+    overcast: { sky: "#8898a8", mist: "#c8d8d0", glow: "#e0d8c0" },
+    rain: { sky: "#6a8898", mist: "#a0b8b0", glow: "#90a090" },
   },
   dusk: {
-    clear: { sky: "#e88858", mist: "#d8b898", glow: "#f0a868" },
-    overcast: { sky: "#807068", mist: "#b0a8a0", glow: "#c0a888" },
-    rain: { sky: "#606868", mist: "#909898", glow: "#808078" },
+    clear: { sky: "#f09868", mist: "#e0c8a8", glow: "#f8b878" },
+    overcast: { sky: "#908078", mist: "#c0b8b0", glow: "#d0b898" },
+    rain: { sky: "#707878", mist: "#a0a8a8", glow: "#909088" },
   },
   night: {
-    clear: { sky: "#1a2840", mist: "#405068", glow: "#8090a0" },
-    overcast: { sky: "#1a2535", mist: "#485868", glow: "#707878" },
-    rain: { sky: "#142030", mist: "#405058", glow: "#606868" },
+    clear: { sky: "#1a2840", mist: "#506078", glow: "#90a0b0" },
+    overcast: { sky: "#1a2535", mist: "#586878", glow: "#808888" },
+    rain: { sky: "#142030", mist: "#506068", glow: "#707878" },
   },
 };
 

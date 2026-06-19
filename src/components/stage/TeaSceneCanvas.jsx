@@ -753,9 +753,9 @@ function MountainShape({ x, y, z, width, height, depth, color, seed = 0 }) {
 }
 
 function LayeredMountains({ timeSlot, weather }) {
-  const far = weather === "rain" ? "#5a8a80" : "#3a8a7a";
-  const mid = weather === "rain" ? "#3a6858" : "#2d7060";
-  const near = weather === "rain" ? "#2a5040" : "#1d5a4a";
+  const far = weather === "rain" ? "#6a9a90" : "#50a898";
+  const mid = weather === "rain" ? "#4a8068" : "#3d8a70";
+  const near = weather === "rain" ? "#3a6850" : "#2d7a5a";
 
   return (
     <group>
@@ -802,7 +802,7 @@ function AnimatedTrees({ x, z = -1.5, mirrored = false }) {
       </mesh>
       {[0, 0.4, 0.75].map((y, i) => (
         <mesh key={i} position={[0, 1.85 + y, 0]} geometry={canopyGeo} scale={[1 - i * 0.15, 0.95 - i * 0.08, 1 - i * 0.12]}>
-          <meshStandardMaterial color={i === 0 ? "#2a8050" : i === 1 ? "#2d8a55" : "#32945a"} roughness={0.95} />
+          <meshStandardMaterial color={i === 0 ? "#3a9860" : i === 1 ? "#40a068" : "#45a870"} roughness={0.95} />
         </mesh>
       ))}
     </group>
@@ -984,7 +984,7 @@ function ShorelineReeds({ weather }) {
         <group key={i} position={[r.x, 0, 0]} rotation={[0, 0, r.lean]}>
           <mesh>
             <cylinderGeometry args={[0.015, 0.03, r.h, 12]} />
-            <meshStandardMaterial color="#2a4035" roughness={0.95} />
+            <meshStandardMaterial color="#3a5045" roughness={0.95} />
           </mesh>
           <mesh position={[0, r.h * 0.5, 0]}>
             <capsuleGeometry args={[0.04, 0.16, 6, 12]} />
@@ -998,15 +998,15 @@ function ShorelineReeds({ weather }) {
 
 function WindowLandscape({ weather, timeSlot }) {
   const skyColors = {
-    dawn:  "#f0a878",
-    day:   "#4ab8d8",
-    dusk:  "#e88858",
+    dawn:  "#f8b888",
+    day:   "#5ac8e8",
+    dusk:  "#f09868",
     night: "#1a2840",
   };
   const skyColor = weather === "rain"
-    ? (timeSlot === "night" ? "#142030" : "#5a7888")
+    ? (timeSlot === "night" ? "#142030" : "#6a8898")
     : weather === "overcast"
-    ? (timeSlot === "night" ? "#1a2535" : "#788898")
+    ? (timeSlot === "night" ? "#1a2535" : "#8898a8")
     : skyColors[timeSlot] || skyColors.day;
 
   return (
@@ -1014,11 +1014,11 @@ function WindowLandscape({ weather, timeSlot }) {
       <SkyGradient color={skyColor} />
       <CloudLayer weather={weather} />
       <SunMoon timeSlot={timeSlot} />
-      <AnimatedWater color={weather === "rain" ? "#3a8090" : "#3aa8c0"} position={[0, 0.08, -0.12]} size={[24, 12]} amplitude={0.06} speed={0.55} />
+      <AnimatedWater color={weather === "rain" ? "#4a98a8" : "#50b8d0"} position={[0, 0.08, -0.12]} size={[24, 12]} amplitude={0.06} speed={0.55} />
       <ExteriorWrap color={weather === "rain" ? "#2a3a40" : "#5a7a78"} />
       <mesh position={[0, 0.34, -0.98]}>
         <boxGeometry args={[16, 0.16, 0.42]} />
-        <meshStandardMaterial color="#2a4a3a" roughness={0.96} />
+        <meshStandardMaterial color="#3a5a4a" roughness={0.96} />
       </mesh>
       <ShorelineReeds weather={weather} />
       <LayeredMountains timeSlot={timeSlot} weather={weather} />
