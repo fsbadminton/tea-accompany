@@ -18,7 +18,7 @@ export function MainStage({ scene, weather, timeSlot, perspective, mood, audioEn
     >
       {sceneTransition && <div className="scene-transition-overlay" />}
       <div className="scene-backdrop">
-        <TeaSceneCanvas scene={scene} weather={weather} timeSlot={timeSlot} perspective={perspective} mood={mood} activeGesture={activeGesture} tableStyle={tableStyle} occupancy={occupancy} />
+        <TeaSceneCanvas scene={scene} weather={weather} perspective={perspective} mood={mood} activeGesture={activeGesture} tableStyle={tableStyle} occupancy={occupancy} timeSlot={timeSlot} />
       </div>
 
       <section className="stage-copy">

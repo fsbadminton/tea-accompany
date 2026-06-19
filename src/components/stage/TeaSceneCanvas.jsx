@@ -410,18 +410,18 @@ function SteamParticles({ position = [0, 0.5, 0], count = 40, spread = 0.15, ris
   );
 }
 
-function AnimatedWater({ color }) {
+function AnimatedWater({ color, position = [0, -0.36, -4.5], size = [24, 14], amplitude = 0.03, speed = 0.55 }) {
   const waterRef = useRef(null);
 
   useFrame((state) => {
     if (!waterRef.current) return;
     waterRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.15) * 0.015;
-    waterRef.current.position.y = -0.36 + Math.sin(state.clock.elapsedTime * 0.55) * 0.03;
+    waterRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * speed) * amplitude;
   });
 
   return (
-    <mesh ref={waterRef} rotation-x={-Math.PI / 2} position={[0, -0.36, -4.5]}>
-      <planeGeometry args={[24, 14, 32, 32]} />
+    <mesh ref={waterRef} rotation-x={-Math.PI / 2} position={position}>
+      <planeGeometry args={[...size, 32, 32]} />
       <meshStandardMaterial color={color} transparent opacity={0.82} roughness={0.18} metalness={0.08} />
     </mesh>
   );
@@ -683,56 +683,257 @@ function OpenWindowLeaf({ side }) {
   );
 }
 
-function WindowLandscape({ weather }) {
-  const water = weather === "rain" ? "#58777a" : "#7da2a8";
-  const mountain = weather === "rain" ? "#536a62" : "#71877c";
+function SkyGradient({ timeSlot, weather }) {
+  const palettes = {
+    dawn:  { top: "#7a9aaa", mid: "#c4bfb0", low: "#e8cdb0" },
+    day:   { top: "#6a98b0", mid: "#a8c4cc", low: "#d4dde0" },
+    dusk:  { top: "#5a6a78", mid: "#8a8890", low: "#c4a888" },
+    night: { top: "#1a2830", mid: "#283840", low: "#3a4a50" },
+  };
+  const p = palettes[timeSlot] || palettes.day;
+  const rainDarken = weather === "rain" ? 0.85 : weather === "overcast" ? 0.92 : 1;
 
   return (
-    <group position={[0, 0, -4.95]}>
-      <mesh position={[0, 1.95, -4.2]}>
-        <planeGeometry args={[14, 6]} />
-        <meshStandardMaterial color={weather === "rain" ? "#617174" : "#9eb8bd"} roughness={1} side={THREE.DoubleSide} />
+    <group>
+      <mesh position={[0, 3.2, -5]}>
+        <planeGeometry args={[16, 2.5]} />
+        <meshBasicMaterial color={p.top} transparent opacity={rainDarken} side={THREE.DoubleSide} />
       </mesh>
-      <mesh rotation-x={-Math.PI / 2} position={[0, 0.08, -0.12]}>
-        <planeGeometry args={[15, 8]} />
-        <meshStandardMaterial color={water} transparent opacity={0.94} roughness={0.28} metalness={0.06} side={THREE.DoubleSide} />
+      <mesh position={[0, 1.8, -5]}>
+        <planeGeometry args={[16, 2.5]} />
+        <meshBasicMaterial color={p.mid} transparent opacity={rainDarken} side={THREE.DoubleSide} />
       </mesh>
-      <ExteriorWrap color={weather === "rain" ? "#31434a" : "#678188"} />
-      <mesh position={[0, 0.34, -0.98]}>
-        <boxGeometry args={[9.6, 0.16, 0.42]} />
-        <meshStandardMaterial color="#344b41" roughness={0.96} />
+      <mesh position={[0, 0.6, -5]}>
+        <planeGeometry args={[16, 2.2]} />
+        <meshBasicMaterial color={p.low} transparent opacity={rainDarken} side={THREE.DoubleSide} />
       </mesh>
-      <ShorelineStones />
-      <Mountain position={[-4.8, 1.42, -3.95]} scale={[1.9, 2.42, 1.8]} color={mountain} />
-      <Mountain position={[-1.1, 1.82, -4.65]} scale={[2.45, 3.08, 2.25]} color="#697e73" />
-      <Mountain position={[2.85, 1.6, -4.18]} scale={[2.1, 2.72, 2]} color="#50695f" />
-      <Mountain position={[5.35, 1.3, -3.72]} scale={[1.56, 2.08, 1.5]} color="#435b52" />
-      <group position={[-1.35, 0.43, -1.72]} scale={[0.48, 0.48, 0.48]}>
-        <Pavilion />
-      </group>
-      <LakeIslands />
-      <WindowTree x={-4.15} z={-0.72} />
-      <WindowTree x={3.9} z={-0.64} mirrored />
-      <DistantReeds />
-      <WaterRipples color={weather === "rain" ? "#c9dddd" : "#e0ede9"} />
-      <MistBands />
     </group>
   );
 }
 
-function WindowTree({ x, z = -0.85, mirrored = false }) {
+function SunMoon({ timeSlot }) {
+  const ref = useRef(null);
+  const config = {
+    dawn:  { pos: [-3, 1.2, -5.5], color: "#f0c87a", emissive: "#e8a040", size: 0.35, intensity: 0.4 },
+    day:   { pos: [1, 2.8, -6], color: "#f5f0e0", emissive: "#e8dcc0", size: 0.4, intensity: 0.5 },
+    dusk:  { pos: [3.5, 1.0, -5.5], color: "#e89060", emissive: "#d06830", size: 0.35, intensity: 0.35 },
+    night: { pos: [2, 2.5, -6], color: "#c0d0e0", emissive: "#8098b0", size: 0.25, intensity: 0.15 },
+  };
+  const c = config[timeSlot] || config.day;
+
+  useFrame((state) => {
+    if (!ref.current) return;
+    ref.current.position.y = c.pos[1] + Math.sin(state.clock.elapsedTime * 0.15) * 0.08;
+  });
+
   return (
-    <group position={[x, 0.25, z]} scale={[mirrored ? -1 : 1, 1, 1]}>
-      <mesh position={[0, 0.85, 0]} rotation={[0.08, 0, -0.22]}>
-        <cylinderGeometry args={[0.035, 0.055, 1.75, 8]} />
-        <meshStandardMaterial color="#283529" roughness={0.9} />
-      </mesh>
-      {[-0.2, 0.2, 0.58].map((y, index) => (
-        <mesh key={index} position={[0.18 + index * 0.12, 1.2 + y, 0]} rotation={[0.1, 0, -0.72 + index * 0.12]}>
-          <coneGeometry args={[0.18, 1.05, 6]} />
-          <meshStandardMaterial color="#435846" roughness={0.96} transparent opacity={0.74} />
+    <mesh ref={ref} position={c.pos}>
+      <sphereGeometry args={[c.size, 24, 24]} />
+      <meshStandardMaterial color={c.color} emissive={c.emissive} emissiveIntensity={c.intensity} transparent opacity={0.9} />
+    </mesh>
+  );
+}
+
+function LayeredMountains({ timeSlot, weather }) {
+  const far = weather === "rain" ? "#7a8a82" : "#96aea4";
+  const mid = weather === "rain" ? "#5a7068" : "#728a7e";
+  const near = weather === "rain" ? "#3e5550" : "#4e6a60";
+
+  return (
+    <group>
+      {[
+        { x: -3.5, y: 1.3, z: -6.5, sx: 2.5, sy: 3.2, sz: 2.2, color: far, opacity: 0.55 },
+        { x: 1.5, y: 1.5, z: -7, sx: 3.2, sy: 3.8, sz: 2.8, color: far, opacity: 0.5 },
+        { x: 5, y: 1.2, z: -6.2, sx: 2.2, sy: 2.8, sz: 2, color: far, opacity: 0.55 },
+        { x: -2, y: 1.0, z: -5, sx: 2.8, sy: 2.6, sz: 2.4, color: mid, opacity: 0.7 },
+        { x: 3, y: 0.9, z: -4.8, sx: 2.4, sy: 2.2, sz: 2, color: mid, opacity: 0.72 },
+        { x: -4.5, y: 0.6, z: -3.8, sx: 2, sy: 1.6, sz: 1.8, color: near, opacity: 0.85 },
+        { x: 0, y: 0.5, z: -3.5, sx: 2.2, sy: 1.4, sz: 2, color: near, opacity: 0.88 },
+        { x: 4.5, y: 0.55, z: -3.6, sx: 1.8, sy: 1.3, sz: 1.6, color: near, opacity: 0.85 },
+      ].map((m, i) => (
+        <mesh key={i} position={[m.x, m.y, m.z]} scale={[m.sx, m.sy, m.sz]}>
+          <coneGeometry args={[0.8, 1, 6]} />
+          <meshStandardMaterial color={m.color} transparent opacity={m.opacity} roughness={1} />
         </mesh>
       ))}
+    </group>
+  );
+}
+
+function AnimatedTrees({ x, z = -1.5, mirrored = false }) {
+  const ref = useRef(null);
+
+  useFrame((state) => {
+    if (!ref.current) return;
+    ref.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.5 + x) * 0.04;
+  });
+
+  return (
+    <group ref={ref} position={[x, 0, z]} scale={[mirrored ? -1 : 1, 1, 1]}>
+      <mesh position={[0, 1.2, 0]}>
+        <cylinderGeometry args={[0.06, 0.09, 2.4, 8]} />
+        <meshStandardMaterial color="#3a2a1e" roughness={0.9} />
+      </mesh>
+      {[0, 0.45, 0.85].map((y, i) => (
+        <mesh key={i} position={[0, 1.8 + y, 0]}>
+          <sphereGeometry args={[0.55 - i * 0.1, 12, 10]} />
+          <meshStandardMaterial color={i === 0 ? "#3a5840" : "#4a6a4e"} transparent opacity={0.88 - i * 0.06} roughness={0.95} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function DriftingMist({ weather }) {
+  const ref = useRef(null);
+  const density = weather === "rain" ? 1.8 : weather === "overcast" ? 1.3 : 1;
+
+  useFrame((state) => {
+    if (!ref.current) return;
+    const t = state.clock.elapsedTime;
+    ref.current.position.x = Math.sin(t * 0.1) * 1.2;
+    ref.current.children.forEach((child, i) => {
+      if (child.material) {
+        child.material.opacity = (0.22 - i * 0.04) * density * (0.85 + Math.sin(t * 0.35 + i * 2) * 0.15);
+      }
+    });
+  });
+
+  return (
+    <group ref={ref} position={[0, 0.8, -3]}>
+      {[0, 0.4, 0.8].map((y, i) => (
+        <mesh key={i} position={[i * 0.5, y, -i * 0.6]}>
+          <planeGeometry args={[8 - i, 0.35]} />
+          <meshBasicMaterial color="#dce8e0" transparent opacity={0.22 - i * 0.04} side={THREE.DoubleSide} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function WaveRipples({ weather }) {
+  const refs = useRef([]);
+  const speed = weather === "rain" ? 2 : 1;
+
+  useFrame((state) => {
+    const t = state.clock.elapsedTime;
+    refs.current.forEach((mesh, i) => {
+      if (!mesh) return;
+      const pulse = 1 + Math.sin(t * speed * 0.7 + i * 1.3) * 0.12;
+      mesh.scale.set(pulse, pulse, 1);
+      mesh.material.opacity = 0.55 * (0.8 + Math.sin(t * speed * 0.4 + i) * 0.2);
+    });
+  });
+
+  return (
+    <group position={[0, 0.12, -1.5]}>
+      {[-1.8, -0.7, 0.3, 1.2, 2.1].map((x, i) => (
+        <mesh
+          key={i}
+          ref={(el) => { refs.current[i] = el; }}
+          position={[x, 0.02, -i * 0.3]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <ringGeometry args={[0.3 + i * 0.04, 0.35 + i * 0.04, 48]} />
+          <meshBasicMaterial color="#c0dcd8" transparent opacity={0.55} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function FlyingBirds({ weather }) {
+  const ref = useRef(null);
+  const birds = [
+    { x: -1.2, y: 2.0, z: -3, speed: 0.18, phase: 0, wingSpeed: 3 },
+    { x: 0.5, y: 2.3, z: -2.8, speed: 0.14, phase: 1.5, wingSpeed: 2.5 },
+    { x: 2.0, y: 1.8, z: -3.2, speed: 0.2, phase: 3, wingSpeed: 3.5 },
+  ];
+
+  useFrame((state) => {
+    if (!ref.current) return;
+    const t = state.clock.elapsedTime;
+    ref.current.children.forEach((bird, i) => {
+      const b = birds[i];
+      bird.position.x = b.x + Math.sin(t * b.speed + b.phase) * 3;
+      bird.position.y = b.y + Math.sin(t * b.speed * 0.6 + b.phase) * 0.25;
+      bird.children.forEach((wing) => {
+        wing.rotation.z = Math.sin(t * b.wingSpeed + b.phase) * 0.4;
+      });
+    });
+  });
+
+  if (weather === "rain") return null;
+
+  return (
+    <group ref={ref}>
+      {birds.map((b, i) => (
+        <group key={i} position={[b.x, b.y, b.z]}>
+          <mesh position={[-0.12, 0, 0]}>
+            <planeGeometry args={[0.25, 0.05]} />
+            <meshBasicMaterial color="#1a2828" transparent opacity={0.55} side={THREE.DoubleSide} />
+          </mesh>
+          <mesh position={[0.12, 0, 0]}>
+            <planeGeometry args={[0.25, 0.05]} />
+            <meshBasicMaterial color="#1a2828" transparent opacity={0.55} side={THREE.DoubleSide} />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function ShorelineReeds({ weather }) {
+  const groupRef = useRef(null);
+  const reeds = [-3.2, -2.8, -2.5, 2.3, 2.6, 2.9, 3.2];
+
+  useFrame((state) => {
+    if (!groupRef.current) return;
+    const t = state.clock.elapsedTime;
+    groupRef.current.children.forEach((child, i) => {
+      child.rotation.z = Math.sin(t * 0.7 + i * 0.8) * 0.12;
+    });
+  });
+
+  return (
+    <group ref={groupRef} position={[0, 0.35, -2]}>
+      {reeds.map((x, i) => (
+        <group key={i} position={[x, 0, 0]}>
+          <mesh>
+            <cylinderGeometry args={[0.02, 0.035, 1.1, 6]} />
+            <meshStandardMaterial color="#2a4035" roughness={0.95} />
+          </mesh>
+          <mesh position={[0, 0.55, 0]}>
+            <capsuleGeometry args={[0.05, 0.18, 4, 8]} />
+            <meshStandardMaterial color="#8a7a50" roughness={0.9} />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function WindowLandscape({ weather, timeSlot }) {
+  return (
+    <group position={[0, 0, -4.95]}>
+      <SkyGradient timeSlot={timeSlot} weather={weather} />
+      <SunMoon timeSlot={timeSlot} />
+      <AnimatedWater color={weather === "rain" ? "#4a7070" : "#6a9aa5"} position={[0, 0.08, -0.12]} size={[15, 8]} amplitude={0.06} speed={0.55} />
+      <ExteriorWrap color={weather === "rain" ? "#2a3a40" : "#5a7a78"} />
+      <mesh position={[0, 0.34, -0.98]}>
+        <boxGeometry args={[9.6, 0.16, 0.42]} />
+        <meshStandardMaterial color="#344b41" roughness={0.96} />
+      </mesh>
+      <ShorelineReeds weather={weather} />
+      <LayeredMountains timeSlot={timeSlot} weather={weather} />
+      <group position={[-1.35, 0.3, -2.2]} scale={[0.42, 0.42, 0.42]}>
+        <Pavilion />
+      </group>
+      <AnimatedTrees x={-4} z={-1.8} />
+      <AnimatedTrees x={4.2} z={-1.6} mirrored />
+      <WaveRipples weather={weather} />
+      <DriftingMist weather={weather} />
+      <FlyingBirds weather={weather} />
     </group>
   );
 }
@@ -781,111 +982,6 @@ function SideSceneryPanel({ side, color }) {
         <planeGeometry args={[6.4, 0.28]} />
         <meshBasicMaterial color="#d6e2dc" transparent opacity={0.2} side={THREE.DoubleSide} />
       </mesh>
-    </group>
-  );
-}
-
-function DistantReeds() {
-  const reeds = [-3.42, -3.12, -2.82, -2.52, 2.2, 2.52, 2.86, 3.18, 3.48];
-
-  return (
-    <group position={[0, 0.5, -0.74]}>
-      {reeds.map((x, index) => (
-        <group key={index} position={[x, 0.28 + (index % 2) * 0.1, 0]} rotation={[0, 0, -0.22 + index * 0.065]}>
-          <mesh>
-            <cylinderGeometry args={[0.018, 0.03, 0.9, 6]} />
-            <meshStandardMaterial color="#1f352b" roughness={0.95} />
-          </mesh>
-          <mesh position={[0, 0.48, 0]}>
-            <capsuleGeometry args={[0.045, 0.16, 4, 8]} />
-            <meshStandardMaterial color="#796f4e" roughness={0.9} />
-          </mesh>
-        </group>
-      ))}
-    </group>
-  );
-}
-
-function ShorelineStones() {
-  const stones = [
-    [-4.05, 0.62, -0.46, 0.42],
-    [-3.48, 0.6, -0.5, 0.34],
-    [-2.9, 0.61, -0.48, 0.3],
-    [-0.92, 0.61, -0.52, 0.38],
-    [-0.38, 0.6, -0.46, 0.3],
-    [0.2, 0.62, -0.52, 0.35],
-    [2.66, 0.6, -0.48, 0.36],
-    [3.2, 0.62, -0.52, 0.32],
-    [3.72, 0.61, -0.47, 0.38],
-  ];
-
-  return (
-    <group>
-      <mesh position={[0, 0.5, -0.55]}>
-        <boxGeometry args={[8.4, 0.14, 0.18]} />
-        <meshBasicMaterial color="#7c9082" />
-      </mesh>
-      {stones.map(([x, y, z, radius], index) => (
-        <mesh key={index} position={[x, y, z]} rotation={[-Math.PI / 2, 0, index * 0.36]} scale={[1.25, 0.58, 1]}>
-          <cylinderGeometry args={[radius, radius * 1.12, 0.12, 18]} />
-          <meshBasicMaterial color={index % 2 ? "#8da092" : "#6f8678"} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-function LakeIslands() {
-  return (
-    <group position={[0, 0.42, -1.02]}>
-      {[
-        [-3.12, 0.08, -0.05, 0.78, 0.16, 0.34],
-        [-0.1, 0.08, -0.34, 1.08, 0.16, 0.36],
-        [2.18, 0.08, 0.02, 0.9, 0.16, 0.34],
-      ].map(([x, y, z, width, height, depth], index) => (
-        <group key={index} position={[x, y, z]}>
-          <mesh>
-            <cylinderGeometry args={[width * 0.42, width * 0.52, height, 20]} />
-            <meshStandardMaterial color={index === 1 ? "#40594e" : "#304b40"} roughness={0.98} />
-          </mesh>
-          {[...Array(4)].map((_, tuftIndex) => (
-            <mesh
-              key={tuftIndex}
-              position={[-width * 0.22 + tuftIndex * width * 0.15, 0.16, -depth * 0.1 + (tuftIndex % 2) * depth * 0.18]}
-              rotation={[0.08, 0, -0.32 + tuftIndex * 0.18]}
-            >
-              <coneGeometry args={[0.055, 0.36, 6]} />
-              <meshStandardMaterial color="#263c31" roughness={0.96} />
-            </mesh>
-          ))}
-        </group>
-      ))}
-    </group>
-  );
-}
-
-function MistBands() {
-  return (
-    <group position={[0, 0, -1.52]}>
-      {[0.78, 1.08, 1.42].map((y, index) => (
-        <mesh key={index} position={[0.05 - index * 0.18, y, -0.25 - index * 0.42]}>
-          <planeGeometry args={[7.6 - index * 0.5, 0.3]} />
-          <meshBasicMaterial color="#e2ece6" transparent opacity={0.28 - index * 0.04} side={THREE.DoubleSide} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-function WaterRipples({ color }) {
-  return (
-    <group position={[0, 0.2, -0.22]}>
-      {[-2.5, -1.3, -0.2, 1.05, 2.35].map((x, index) => (
-        <mesh key={index} position={[x, 0.035, -0.16 - index * 0.22]} rotation={[-Math.PI / 2, 0, 0]} scale={[1.55, 0.42, 1]}>
-          <ringGeometry args={[0.36 + index * 0.05, 0.4 + index * 0.05, 56]} />
-          <meshBasicMaterial color={color} transparent opacity={0.68} />
-        </mesh>
-      ))}
     </group>
   );
 }
@@ -1067,12 +1163,12 @@ function CourtyardScene({ mood, weather, perspective, activeGesture, tableStyle,
   );
 }
 
-function TearoomScene({ mood, weather, perspective, activeGesture, tableStyle, occupancy }) {
+function TearoomScene({ mood, weather, perspective, activeGesture, tableStyle, occupancy, timeSlot }) {
   return (
     <>
       <SharedLighting mood={mood} intensity={1.18} spotColor="#efd2ad" fogRange={[10, 24]} />
       <TearoomShell />
-      <WindowLandscape weather={weather} />
+      <WindowLandscape weather={weather} timeSlot={timeSlot} />
       <WindowRainSheet visible={weather === "rain"} />
       <RectTeaTable3D activeGesture={activeGesture} tableStyle={tableStyle} />
       <SilhouetteGuests perspective={perspective} sceneId="tearoom" occupancy={occupancy} />
@@ -1084,8 +1180,8 @@ function TearoomScene({ mood, weather, perspective, activeGesture, tableStyle, o
   );
 }
 
-function SceneContent({ sceneId, mood, weather, perspective, activeGesture, tableStyle, occupancy }) {
-  const sceneProps = { mood, weather, perspective, activeGesture, tableStyle, occupancy };
+function SceneContent({ sceneId, mood, weather, perspective, activeGesture, tableStyle, occupancy, timeSlot }) {
+  const sceneProps = { mood, weather, perspective, activeGesture, tableStyle, occupancy, timeSlot };
 
   if (sceneId === "courtyard") {
     return <CourtyardScene {...sceneProps} />;
@@ -1098,7 +1194,7 @@ function SceneContent({ sceneId, mood, weather, perspective, activeGesture, tabl
   return <LakesideScene {...sceneProps} />;
 }
 
-export function TeaSceneCanvas({ scene, weather, perspective, mood, activeGesture, tableStyle, occupancy }) {
+export function TeaSceneCanvas({ scene, weather, perspective, mood, activeGesture, tableStyle, occupancy, timeSlot }) {
   return (
     <div className="tea-scene-canvas">
       <Canvas shadows camera={{ position: [0, 1.25, 5.6], fov: 42 }}>
@@ -1111,6 +1207,7 @@ export function TeaSceneCanvas({ scene, weather, perspective, mood, activeGestur
           activeGesture={activeGesture}
           tableStyle={tableStyle}
           occupancy={occupancy}
+          timeSlot={timeSlot}
         />
         {perspective !== "orbitView" ? null : (
           <OrbitControls
