@@ -1,7 +1,7 @@
 import { TeaSceneCanvas } from "./stage/TeaSceneCanvas";
 import { LABELS } from "../data/scenes";
 
-export function MainStage({ scene, weather, timeSlot, perspective, mood, audioEnabled, activeGesture, tableStyle, sceneTransition, occupancy }) {
+export function MainStage({ scene, weather, timeSlot, perspective, mood, audioEnabled, activeGesture, tableStyle, sceneTransition, occupancy, onSceneLoaded }) {
   const viewClass = perspective === "firstPerson" ? "is-first-person" : "is-observing";
 
   return (
@@ -18,7 +18,7 @@ export function MainStage({ scene, weather, timeSlot, perspective, mood, audioEn
     >
       {sceneTransition && <div className="scene-transition-overlay" />}
       <div className="scene-backdrop">
-        <TeaSceneCanvas scene={scene} weather={weather} perspective={perspective} mood={mood} activeGesture={activeGesture} tableStyle={tableStyle} occupancy={occupancy} timeSlot={timeSlot} />
+        <TeaSceneCanvas scene={scene} weather={weather} perspective={perspective} mood={mood} activeGesture={activeGesture} tableStyle={tableStyle} occupancy={occupancy} timeSlot={timeSlot} onSceneLoaded={onSceneLoaded} />
       </div>
 
       <section className="stage-copy">

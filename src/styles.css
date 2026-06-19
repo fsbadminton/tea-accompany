@@ -484,6 +484,161 @@ select option {
   transform: translateY(-2px);
 }
 
+/* ── P2-1: Loading overlay ── */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #12100d;
+  transition: opacity 800ms ease, visibility 800ms ease;
+}
+
+.loading-overlay.is-fading {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.loading-cup {
+  position: relative;
+  width: 56px;
+  height: 52px;
+  margin-bottom: 1.4rem;
+}
+
+.loading-cup-body {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 30px;
+  border: 2px solid rgba(245, 235, 223, 0.5);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+}
+
+.loading-cup-handle {
+  position: absolute;
+  right: 4px;
+  top: 12px;
+  width: 14px;
+  height: 16px;
+  border: 2px solid rgba(245, 235, 223, 0.5);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+}
+
+.loading-steam {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 5px;
+}
+
+.loading-steam span {
+  display: block;
+  width: 2px;
+  height: 14px;
+  background: rgba(245, 235, 223, 0.35);
+  border-radius: 1px;
+  animation: steamRise 1.2s ease-in-out infinite;
+}
+
+.loading-steam span:nth-child(2) {
+  animation-delay: 0.25s;
+  height: 18px;
+}
+
+.loading-steam span:nth-child(3) {
+  animation-delay: 0.5s;
+}
+
+@keyframes steamRise {
+  0%, 100% { opacity: 0.2; transform: translateY(0); }
+  50% { opacity: 0.6; transform: translateY(-6px); }
+}
+
+.loading-text {
+  font-size: 0.82rem;
+  letter-spacing: 0.18em;
+  color: rgba(243, 238, 230, 0.5);
+}
+
+/* ── P2-2: Mobile-friendly select ── */
+.select-field {
+  position: relative;
+}
+
+.select-field::after {
+  content: "";
+  position: absolute;
+  right: 0.9rem;
+  bottom: 1rem;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid rgba(243, 238, 230, 0.45);
+  pointer-events: none;
+}
+
+.select-field select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 1.4rem;
+  cursor: pointer;
+}
+
+@media (max-width: 720px) {
+  .select-field {
+    padding: 1rem 0.9rem;
+    min-height: 3rem;
+  }
+
+  .select-field select {
+    font-size: 1rem;
+    min-height: 1.6rem;
+  }
+
+  .chip, .toggle-button {
+    padding: 0.72rem 1.05rem;
+    font-size: 0.92rem;
+  }
+
+  .immersive-toggle {
+    top: auto;
+    bottom: 1.2rem;
+    right: 50%;
+    transform: translateX(50%);
+  }
+
+  .control-dock .dock-card:last-child {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .select-field {
+    padding: 0.85rem 0.75rem;
+  }
+
+  .control-dock {
+    display: none;
+  }
+
+  .stage-copy h1 {
+    font-size: clamp(2rem, 10vw, 3rem);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .immersive-toggle,
   .app-overlay,

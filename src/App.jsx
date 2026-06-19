@@ -27,6 +27,7 @@ function App() {
   const [activeGesture, setActiveGesture] = useState("pour");
   const [clockTime, setClockTime] = useState(new Date());
   const [sceneTransition, setSceneTransition] = useState(false);
+  const [sceneLoaded, setSceneLoaded] = useState(false);
   const [showWelcome, setShowWelcome] = useState(() => {
     try { return !sessionStorage.getItem("tea-welcomed"); } catch { return true; }
   });
@@ -223,6 +224,17 @@ function App() {
 
   return (
     <div className={`app-shell ${immersiveMode ? "is-immersive" : ""}`}>
+      <div className={`loading-overlay${sceneLoaded ? " is-fading" : ""}`}>
+        <div className="loading-cup">
+          <div className="loading-steam">
+            <span /><span /><span />
+          </div>
+          <div className="loading-cup-body" />
+          <div className="loading-cup-handle" />
+        </div>
+        <p className="loading-text">加载中...</p>
+      </div>
+
       {showWelcome && (
         <WelcomeOverlay quote={welcomeQuote} onDismiss={handleWelcomeDismiss} />
       )}
@@ -238,6 +250,7 @@ function App() {
         mood={derivedMood}
         audioEnabled={audioEnabled}
         sceneTransition={sceneTransition}
+        onSceneLoaded={() => setSceneLoaded(true)}
       />
 
       <button

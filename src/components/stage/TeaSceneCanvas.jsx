@@ -1,6 +1,6 @@
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Float, OrbitControls } from "@react-three/drei";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useEffect, useState } from "react";
 import * as THREE from "three";
 
 function CameraRig({ perspective, sceneId }) {
@@ -1358,10 +1358,19 @@ function SceneContent({ sceneId, mood, weather, perspective, activeGesture, tabl
   return <LakesideScene {...sceneProps} />;
 }
 
-export function TeaSceneCanvas({ scene, weather, perspective, mood, activeGesture, tableStyle, occupancy, timeSlot }) {
+export function TeaSceneCanvas({ scene, weather, perspective, mood, activeGesture, tableStyle, occupancy, timeSlot, onSceneLoaded }) {
+  const [fov] = useState(() => {
+    if (typeof window === "undefined") return 42;
+    return window.innerWidth < 720 ? 62 : window.innerWidth < 1100 ? 52 : 42;
+  });
+
+  const handleCreated = useMemo(() => {
+    return () => { if (onSceneLoaded) onSceneLoaded(); };
+  }, [onSceneLoaded]);
+
   return (
     <div className="tea-scene-canvas">
-      <Canvas shadows camera={{ position: [0, 1.25, 5.6], fov: 42 }}>
+      <Canvas shadows camera={{ position: [0, 1.25, 5.6], fov }} onCreated={handleCreated}>
         <CameraRig perspective={perspective} sceneId={scene.id} />
         <SceneContent
           sceneId={scene.id}
@@ -1373,14 +1382,17 @@ export function TeaSceneCanvas({ scene, weather, perspective, mood, activeGestur
           occupancy={occupancy}
           timeSlot={timeSlot}
         />
-        {perspective !== "orbitView" ? null : (
-          <OrbitControls
-            enablePan={false}
-            enableZoom={false}
-            maxPolarAngle={Math.PI / 2.1}
-            minPolarAngle={Math.PI / 3.4}
-          />
-        )}
+        <OrbitControls
+          enablePan={false}
+          enableZoom={false}
+          enableDamping
+          dampingFactor={0.08}
+          rotateSpeed={0.45}
+          minPolarAngle={Math.PI / 4.5}
+          maxPolarAngle={Math.PI / 2.1}
+          minDistance={2.5}
+          maxDistance={9}
+        />
       </Canvas>
     </div>
   );
