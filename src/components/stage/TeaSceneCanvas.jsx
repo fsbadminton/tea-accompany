@@ -1351,10 +1351,10 @@ function TeaSetOnTray({ activeGesture, tableStyle }) {
 
   const spoutCurve = useMemo(() => {
     return new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-0.28, 0.03, 0),
-      new THREE.Vector3(-0.36, 0.07, 0),
-      new THREE.Vector3(-0.44, 0.12, 0),
-      new THREE.Vector3(-0.48, 0.18, 0),
+      new THREE.Vector3(-0.21, 0.02, 0),
+      new THREE.Vector3(-0.30, 0.06, 0),
+      new THREE.Vector3(-0.38, 0.12, 0),
+      new THREE.Vector3(-0.44, 0.20, 0),
     ]);
   }, []);
 
@@ -1367,15 +1367,15 @@ function TeaSetOnTray({ activeGesture, tableStyle }) {
         </mesh>
         <mesh position={[0, 0.22, 0]}>
           <cylinderGeometry args={[0.08, 0.12, 0.08, 24]} />
-          <meshStandardMaterial color="#4a3a2a" roughness={0.42} />
+          <meshStandardMaterial color="#5a4a3a" roughness={0.38} />
         </mesh>
         <mesh position={[0.3, 0.02, -0.01]} rotation={[0, 0, Math.PI / 2]}>
           <torusGeometry args={[0.15, 0.025, 10, 24]} />
-          <meshStandardMaterial color="#4a3a2a" roughness={0.42} />
+          <meshStandardMaterial color="#5a4a3a" roughness={0.38} />
         </mesh>
         <mesh castShadow>
-          <tubeGeometry args={[spoutCurve, 20, 0.032, 10, false]} />
-          <meshStandardMaterial color="#4a3a2a" roughness={0.42} />
+          <tubeGeometry args={[spoutCurve, 20, 0.038, 10, false]} />
+          <meshStandardMaterial color="#5a4a3a" roughness={0.38} />
         </mesh>
         <TeaPourParticles position={[0, 0.16, -0.08]} active={isPouring} count={35} />
         <SteamParticles position={[0, 0.28, 0]} count={isBrewing ? 55 : 30} spread={0.1} riseSpeed={isBrewing ? 0.16 : 0.1} size={isBrewing ? 0.06 : 0.05} opacity={isBrewing ? 0.3 : 0.18} />
