@@ -23,6 +23,7 @@ function App() {
   const [tableStyle, setTableStyle] = useState("simple");
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [immersiveMode, setImmersiveMode] = useState(false);
+  const [showImmersiveHint, setShowImmersiveHint] = useState(false);
   const [activeGesture, setActiveGesture] = useState("pour");
   const [clockTime, setClockTime] = useState(new Date());
   const [sceneTransition, setSceneTransition] = useState(false);
@@ -54,6 +55,16 @@ function App() {
     const timer = window.setInterval(updateClock, 60_000);
     return () => window.clearInterval(timer);
   }, [timeMode]);
+
+  useEffect(() => {
+    if (!immersiveMode) {
+      setShowImmersiveHint(false);
+      return undefined;
+    }
+    setShowImmersiveHint(true);
+    const timer = window.setTimeout(() => setShowImmersiveHint(false), 2200);
+    return () => window.clearTimeout(timer);
+  }, [immersiveMode]);
 
   const currentTimeSlot = timeMode === "auto"
     ? getTimeSlotFromHour(clockTime.getHours())
@@ -180,6 +191,12 @@ function App() {
       >
         {immersiveMode ? "退出沉浸" : "沉浸观察"}
       </button>
+
+      {showImmersiveHint && (
+        <div className="immersive-hint" onClick={() => setImmersiveMode(false)}>
+          点击任意位置退出沉浸
+        </div>
+      )}
 
       <div className="app-overlay" aria-hidden={immersiveMode}>
         <TopBar

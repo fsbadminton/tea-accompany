@@ -41,20 +41,30 @@ function CameraRig({ perspective, sceneId }) {
   return null;
 }
 
-function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#7c5538", tray = "#b48358", activeGesture, tableStyle }) {
+function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c49368", activeGesture, tableStyle }) {
   const gaiwanRef = useRef(null);
   const isPouring = activeGesture === "pour";
+  const isBrewing = activeGesture === "brew";
   const pourAngle = useRef(0);
+  const brewAngle = useRef(0);
 
   useFrame((_, delta) => {
     if (!gaiwanRef.current) return;
     if (isPouring) {
       pourAngle.current += delta * 0.8;
       gaiwanRef.current.rotation.z = Math.sin(pourAngle.current) * 0.28;
+    } else if (isBrewing) {
+      brewAngle.current += delta * 1.8;
+      gaiwanRef.current.rotation.z = Math.sin(brewAngle.current) * 0.06;
+      gaiwanRef.current.rotation.x = Math.cos(brewAngle.current * 0.7) * 0.03;
     } else {
       gaiwanRef.current.rotation.z *= 0.94;
+      gaiwanRef.current.rotation.x *= 0.94;
       if (Math.abs(gaiwanRef.current.rotation.z) < 0.005) {
         gaiwanRef.current.rotation.z = 0;
+      }
+      if (Math.abs(gaiwanRef.current.rotation.x) < 0.005) {
+        gaiwanRef.current.rotation.x = 0;
       }
     }
   });
@@ -64,43 +74,43 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#7c5538", tray = "#b4835
       <group position={position}>
         <mesh position={[0, 0.38, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[1.55, 1.7, 0.18, 32]} />
-          <meshStandardMaterial color={wood} roughness={0.72} />
+          <meshStandardMaterial color={wood} roughness={0.78} />
         </mesh>
 
         <mesh position={[0, -0.18, 0]}>
           <cylinderGeometry args={[0.18, 0.24, 0.84, 20]} />
-          <meshStandardMaterial color="#5e3d28" roughness={0.76} />
+          <meshStandardMaterial color="#705238" roughness={0.82} />
         </mesh>
 
         <mesh position={[0, 0.49, 0]}>
           <boxGeometry args={[1.1, 0.06, 0.7]} />
-          <meshStandardMaterial color={tray} roughness={0.65} />
+          <meshStandardMaterial color={tray} roughness={0.72} />
         </mesh>
 
         <group ref={gaiwanRef} position={[-0.1, 0.6, -0.02]}>
           <mesh>
             <cylinderGeometry args={[0.16, 0.2, 0.2, 24]} />
-            <meshStandardMaterial color="#ece4d8" roughness={0.25} />
+            <meshStandardMaterial color="#f5ede3" roughness={0.2} />
           </mesh>
-          <SteamParticles position={[0, 0.14, 0]} count={20} spread={0.08} riseSpeed={0.08} size={0.04} opacity={0.15} />
+          <SteamParticles position={[0, 0.14, 0]} count={isBrewing ? 40 : 20} spread={0.08} riseSpeed={isBrewing ? 0.14 : 0.08} size={isBrewing ? 0.05 : 0.04} opacity={isBrewing ? 0.28 : 0.15} />
         </group>
 
         <mesh position={[0.3, 0.57, 0]}>
           <cylinderGeometry args={[0.08, 0.1, 0.16, 24]} />
-          <meshStandardMaterial color="#efe6dc" roughness={0.18} />
+          <meshStandardMaterial color="#f8f0e8" roughness={0.15} />
         </mesh>
         <SteamParticles position={[0.3, 0.7, 0]} count={10} spread={0.04} riseSpeed={0.06} size={0.03} opacity={0.1} />
 
         <mesh position={[-0.45, 0.54, 0.08]}>
           <cylinderGeometry args={[0.07, 0.08, 0.09, 20]} />
-          <meshStandardMaterial color="#f5ede3" roughness={0.2} />
+          <meshStandardMaterial color="#faf4ec" roughness={0.18} />
         </mesh>
         <GestureGlowRing active={activeGesture === "serve"} position={[-0.45, 0.55, 0.08]} />
 
         {tableStyle === "full" && (
           <mesh position={[0.02, 0.54, 0.18]}>
             <cylinderGeometry args={[0.07, 0.08, 0.09, 20]} />
-            <meshStandardMaterial color="#f5ede3" roughness={0.2} />
+            <meshStandardMaterial color="#faf4ec" roughness={0.18} />
           </mesh>
         )}
       </group>
@@ -130,11 +140,11 @@ function FirstPersonHands() {
     <group>
       <mesh ref={leftRef} position={[-1.85, -0.08, 1.65]} rotation={[0.08, 0.2, 0.1]}>
         <capsuleGeometry args={[0.22, 0.9, 6, 12]} />
-        <meshStandardMaterial color="#c7a07b" roughness={0.9} />
+        <meshStandardMaterial color="#d4b08a" roughness={0.88} />
       </mesh>
       <mesh ref={rightRef} position={[1.82, -0.1, 1.72]} rotation={[0.1, -0.18, -0.12]}>
         <capsuleGeometry args={[0.22, 0.9, 6, 12]} />
-        <meshStandardMaterial color="#c7a07b" roughness={0.9} />
+        <meshStandardMaterial color="#d4b08a" roughness={0.88} />
       </mesh>
     </group>
   );
@@ -149,11 +159,11 @@ function FirstPersonCup() {
       </mesh>
       <mesh position={[0, -0.1, 0]}>
         <cylinderGeometry args={[0.14, 0.15, 0.03, 24]} />
-        <meshStandardMaterial color="#b68a60" roughness={0.8} />
+        <meshStandardMaterial color="#c89870" roughness={0.75} />
       </mesh>
       <mesh position={[0.18, 0.02, 0]} rotation={[0, 0, Math.PI / 2]}>
         <torusGeometry args={[0.08, 0.02, 12, 18]} />
-        <meshStandardMaterial color="#e9ded1" roughness={0.3} />
+        <meshStandardMaterial color="#f0e8de" roughness={0.25} />
       </mesh>
     </group>
   );
@@ -165,23 +175,23 @@ function FirstPersonTeaFocus({ active, sceneId }) {
     <group>
       <mesh position={[0, tableY, 2.05]}>
         <boxGeometry args={[6.2, 0.14, 2.1]} />
-        <meshStandardMaterial color="#6a452f" roughness={0.82} />
+        <meshStandardMaterial color="#7e5840" roughness={0.82} />
       </mesh>
       <mesh position={[0, tableY + 0.1, 1.45]}>
         <cylinderGeometry args={[0.18, 0.21, 0.22, 24]} />
-        <meshStandardMaterial color="#ece4d8" roughness={0.2} />
+        <meshStandardMaterial color="#f5ede3" roughness={0.18} />
       </mesh>
       <mesh position={[0.42, tableY + 0.08, 1.55]}>
         <cylinderGeometry args={[0.08, 0.09, 0.13, 20]} />
-        <meshStandardMaterial color="#f2e8dc" roughness={0.2} />
+        <meshStandardMaterial color="#f8f0e8" roughness={0.18} />
       </mesh>
       <mesh position={[-0.42, tableY + 0.08, 1.55]}>
         <cylinderGeometry args={[0.08, 0.09, 0.13, 20]} />
-        <meshStandardMaterial color="#f2e8dc" roughness={0.2} />
+        <meshStandardMaterial color="#f8f0e8" roughness={0.18} />
       </mesh>
       <mesh position={[0, tableY + 0.17, 1.7]} rotation={[0, 0, active ? 0.12 : 0]}>
         <torusGeometry args={[0.22, 0.02, 12, 24]} />
-        <meshStandardMaterial color="#d6c6b8" roughness={0.35} />
+        <meshStandardMaterial color="#e0d4c8" roughness={0.3} />
       </mesh>
     </group>
   );
@@ -459,11 +469,11 @@ function CourtyardShelter() {
     <group position={[0, 0, -0.35]}>
       <mesh position={[0, 1.85, -1.35]}>
         <boxGeometry args={[5, 0.18, 3.4]} />
-        <meshStandardMaterial color="#4c392b" />
+        <meshStandardMaterial color="#6a5040" />
       </mesh>
       <mesh position={[0, 2.2, -1.35]} rotation={[0, 0, 0.03]}>
         <boxGeometry args={[5.5, 0.16, 3.9]} />
-        <meshStandardMaterial color="#6a503d" />
+        <meshStandardMaterial color="#846650" />
       </mesh>
       {[
         [-2.15, 0.82, 0.1],
@@ -473,12 +483,12 @@ function CourtyardShelter() {
       ].map((position, index) => (
         <mesh key={index} position={position}>
           <boxGeometry args={[0.18, 1.68, 0.18]} />
-          <meshStandardMaterial color="#604735" />
+          <meshStandardMaterial color="#7a5e48" />
         </mesh>
       ))}
       <mesh position={[0, 0.2, -1.25]}>
         <boxGeometry args={[5.4, 0.1, 4.5]} />
-        <meshStandardMaterial color="#7b6350" />
+        <meshStandardMaterial color="#947a65" />
       </mesh>
     </group>
   );
@@ -537,7 +547,7 @@ function BambooCluster({ x = -4.2, z = -2 }) {
 }
 
 function TearoomShell() {
-  const wall = "#5b3f2b";
+  const wall = "#7a5e42";
 
   return (
     <group>
@@ -549,24 +559,24 @@ function TearoomShell() {
       ].map((part, index) => (
         <mesh key={index} position={part.position} receiveShadow>
           <boxGeometry args={part.size} />
-          <meshStandardMaterial color={wall} roughness={0.86} />
+          <meshStandardMaterial color={wall} roughness={0.88} />
         </mesh>
       ))}
       <mesh position={[0, -0.36, -0.6]} receiveShadow>
         <boxGeometry args={[8.4, 0.12, 5.6]} />
-        <meshStandardMaterial color="#7b5435" roughness={0.92} />
+        <meshStandardMaterial color="#8c6548" roughness={0.88} />
       </mesh>
       <mesh position={[0, 4, -0.6]} receiveShadow>
         <boxGeometry args={[8.6, 0.18, 5.8]} />
-        <meshStandardMaterial color="#3e2a1d" roughness={0.82} />
+        <meshStandardMaterial color="#523826" roughness={0.86} />
       </mesh>
       <mesh position={[-4.2, 1.78, -0.55]} receiveShadow>
         <boxGeometry args={[0.18, 4.1, 5.5]} />
-        <meshStandardMaterial color="#4f3727" roughness={0.84} />
+        <meshStandardMaterial color="#6a4d38" roughness={0.86} />
       </mesh>
       <mesh position={[4.2, 1.78, -0.55]} receiveShadow>
         <boxGeometry args={[0.18, 4.1, 5.5]} />
-        <meshStandardMaterial color="#4f3727" roughness={0.84} />
+        <meshStandardMaterial color="#6a4d38" roughness={0.86} />
       </mesh>
       <WindowFrame3D />
     </group>
@@ -1114,20 +1124,20 @@ function RectTeaTable3D({ activeGesture, tableStyle }) {
       <group position={[0, -0.23, 0.12]}>
         <mesh position={[0, 0.35, 0]} castShadow receiveShadow>
           <boxGeometry args={[4.55, 0.2, 1.72]} />
-          <meshStandardMaterial color="#6a4229" roughness={0.86} />
+          <meshStandardMaterial color="#7e5638" roughness={0.82} />
         </mesh>
         <mesh position={[0, 0.49, -0.18]} castShadow receiveShadow>
           <boxGeometry args={[2.46, 0.1, 0.96]} />
-          <meshStandardMaterial color="#a06f45" roughness={0.72} />
+          <meshStandardMaterial color="#b88458" roughness={0.68} />
         </mesh>
         <mesh position={[0, 0.57, -0.18]}>
           <boxGeometry args={[2.16, 0.035, 0.72]} />
-          <meshStandardMaterial color="#342219" roughness={0.78} />
+          <meshStandardMaterial color="#4a3024" roughness={0.75} />
         </mesh>
         {[[-1.92, -0.08, -0.58], [1.92, -0.08, -0.58], [-1.92, -0.08, 0.58], [1.92, -0.08, 0.58]].map((position, index) => (
           <mesh key={index} position={position} castShadow>
             <boxGeometry args={[0.18, 0.76, 0.18]} />
-            <meshStandardMaterial color="#432918" roughness={0.84} />
+            <meshStandardMaterial color="#5c3d26" roughness={0.8} />
           </mesh>
         ))}
         <TeaSetOnTray activeGesture={activeGesture} tableStyle={tableStyle} />
@@ -1138,18 +1148,28 @@ function RectTeaTable3D({ activeGesture, tableStyle }) {
 
 function TeaSetOnTray({ activeGesture, tableStyle }) {
   const isPouring = activeGesture === "pour";
+  const isBrewing = activeGesture === "brew";
   const teapotGroupRef = useRef(null);
   const pourAngle = useRef(0);
+  const brewAngle = useRef(0);
 
   useFrame((_, delta) => {
     if (!teapotGroupRef.current) return;
     if (isPouring) {
       pourAngle.current += delta * 0.8;
       teapotGroupRef.current.rotation.z = Math.sin(pourAngle.current) * 0.32;
+    } else if (isBrewing) {
+      brewAngle.current += delta * 1.8;
+      teapotGroupRef.current.rotation.z = Math.sin(brewAngle.current) * 0.06;
+      teapotGroupRef.current.rotation.x = Math.cos(brewAngle.current * 0.7) * 0.035;
     } else {
       teapotGroupRef.current.rotation.z *= 0.94;
+      teapotGroupRef.current.rotation.x *= 0.94;
       if (Math.abs(teapotGroupRef.current.rotation.z) < 0.005) {
         teapotGroupRef.current.rotation.z = 0;
+      }
+      if (Math.abs(teapotGroupRef.current.rotation.x) < 0.005) {
+        teapotGroupRef.current.rotation.x = 0;
       }
     }
   });
@@ -1159,44 +1179,44 @@ function TeaSetOnTray({ activeGesture, tableStyle }) {
       <group ref={teapotGroupRef} position={[0.78, 0.16, -0.08]}>
         <mesh castShadow>
           <sphereGeometry args={[0.22, 24, 16]} />
-          <meshStandardMaterial color="#2e2620" roughness={0.42} />
+          <meshStandardMaterial color="#483c32" roughness={0.38} />
         </mesh>
         <mesh position={[0, 0.22, 0]}>
           <cylinderGeometry args={[0.08, 0.12, 0.08, 24]} />
-          <meshStandardMaterial color="#1f1915" roughness={0.5} />
+          <meshStandardMaterial color="#3a3028" roughness={0.42} />
         </mesh>
         <mesh position={[0.3, 0.02, -0.01]} rotation={[0, 0, Math.PI / 2]}>
           <torusGeometry args={[0.15, 0.025, 10, 24]} />
-          <meshStandardMaterial color="#2b211b" roughness={0.5} />
+          <meshStandardMaterial color="#42362c" roughness={0.42} />
         </mesh>
         <mesh position={[-0.28, 0.03, 0]} rotation={[0, 0.15, -0.4]}>
           <coneGeometry args={[0.08, 0.42, 18]} />
-          <meshStandardMaterial color="#2b211b" roughness={0.5} />
+          <meshStandardMaterial color="#42362c" roughness={0.42} />
         </mesh>
-        <SteamParticles position={[0, 0.28, 0]} count={30} spread={0.1} riseSpeed={0.1} size={0.05} opacity={0.18} />
+        <SteamParticles position={[0, 0.28, 0]} count={isBrewing ? 55 : 30} spread={0.1} riseSpeed={isBrewing ? 0.16 : 0.1} size={isBrewing ? 0.06 : 0.05} opacity={isBrewing ? 0.3 : 0.18} />
       </group>
 
       <group position={[-0.05, 0.14, -0.06]}>
         <mesh castShadow>
           <cylinderGeometry args={[0.16, 0.2, 0.36, 24]} />
-          <meshPhysicalMaterial color="#d8cbbb" roughness={0.12} transmission={0.15} transparent opacity={0.58} />
+          <meshPhysicalMaterial color="#e8ddd0" roughness={0.1} transmission={0.18} transparent opacity={0.55} />
         </mesh>
         <mesh position={[0.21, 0.02, 0]} rotation={[0, 0, Math.PI / 2]}>
           <torusGeometry args={[0.12, 0.018, 10, 22]} />
-          <meshStandardMaterial color="#cbb9a5" roughness={0.28} />
+          <meshStandardMaterial color="#ddd0c0" roughness={0.24} />
         </mesh>
-        <SteamParticles position={[0, 0.22, 0]} count={20} spread={0.08} riseSpeed={0.08} size={0.04} opacity={0.14} />
+        <SteamParticles position={[0, 0.22, 0]} count={isBrewing ? 38 : 20} spread={0.08} riseSpeed={isBrewing ? 0.13 : 0.08} size={isBrewing ? 0.05 : 0.04} opacity={isBrewing ? 0.26 : 0.14} />
       </group>
 
       {[[-0.72, 0.07, 0.2], [-0.34, 0.07, 0.28], [0.27, 0.07, 0.27], [0.55, 0.07, 0.22]].slice(0, tableStyle === "full" ? 4 : 2).map((position, index) => (
         <group key={index} position={position}>
           <mesh castShadow>
             <cylinderGeometry args={[0.105, 0.13, 0.14, 24]} />
-            <meshStandardMaterial color="#eee4d8" roughness={0.24} />
+            <meshStandardMaterial color="#f5ede3" roughness={0.2} />
           </mesh>
           <mesh position={[0, 0.08, 0]}>
             <cylinderGeometry args={[0.088, 0.094, 0.015, 24]} />
-            <meshStandardMaterial color="#9f6f3e" emissive="#6e3f1f" emissiveIntensity={0.05} roughness={0.4} />
+            <meshStandardMaterial color="#b88050" emissive="#8a5030" emissiveIntensity={0.08} roughness={0.35} />
           </mesh>
           <SteamParticles position={[0, 0.1, 0]} count={12} spread={0.05} riseSpeed={0.06} size={0.03} opacity={0.1} />
           <GestureGlowRing active={activeGesture === "serve" && index === 0} position={[0, 0.02, 0]} />
@@ -1268,7 +1288,7 @@ function CourtyardScene({ mood, weather, perspective, activeGesture, tableStyle,
       <Mountain position={[-6.2, 1.4, -7.5]} scale={[2.8, 3.4, 2.8]} color="#58685e" />
       <Mountain position={[0.2, 1.8, -8.4]} scale={[3.4, 4.2, 3.4]} color="#65766b" />
       <Mountain position={[6.1, 1.2, -7.1]} scale={[2.4, 3, 2.4]} color="#536157" />
-      <TeaTable3D position={[0, 0.18, 0.6]} wood="#70513b" tray="#ae845d" activeGesture={activeGesture} tableStyle={tableStyle} />
+      <TeaTable3D position={[0, 0.18, 0.6]} wood="#826450" tray="#c09068" activeGesture={activeGesture} tableStyle={tableStyle} />
       <SilhouetteGuests perspective={perspective} sceneId="courtyard" occupancy={occupancy} />
       {perspective === "firstPerson" && (
         <>
