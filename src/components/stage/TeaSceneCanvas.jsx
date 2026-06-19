@@ -694,26 +694,66 @@ function CloudLayer({ weather }) {
 }
 
 function SunMoon({ timeSlot }) {
-  const ref = useRef(null);
-  const config = {
-    dawn:  { pos: [-3, 1.2, -5.5], color: "#f0b860", emissive: "#e8a040", size: 0.35, intensity: 0.5 },
-    day:   { pos: [1, 2.8, -6], color: "#fff8e0", emissive: "#f0e8c0", size: 0.4, intensity: 0.6 },
-    dusk:  { pos: [3.5, 1.0, -5.5], color: "#f08040", emissive: "#d06020", size: 0.35, intensity: 0.45 },
-    night: { pos: [2, 2.5, -6], color: "#e0e8f0", emissive: "#90a8c0", size: 0.25, intensity: 0.2 },
+  const sunRef = useRef(null);
+  const moonRef = useRef(null);
+
+  const sunConfig = {
+    dawn:  { color: "#f8a848", emissive: "#f09020", intensity: 0.6 },
+    day:   { color: "#fff4d0", emissive: "#f0e0a0", intensity: 0.7 },
+    dusk:  { color: "#f07030", emissive: "#d05018", intensity: 0.5 },
+    night: { color: "#f8a848", emissive: "#f09020", intensity: 0.6 },
   };
-  const c = config[timeSlot] || config.day;
+  const moonConfig = {
+    dawn:  { color: "#d0d8e8", emissive: "#8090a8", intensity: 0.15 },
+    day:   { color: "#d0d8e8", emissive: "#8090a8", intensity: 0.15 },
+    dusk:  { color: "#d0d8e8", emissive: "#8090a8", intensity: 0.15 },
+    night: { color: "#e8f0ff", emissive: "#a0b8d0", intensity: 0.25 },
+  };
+
+  const arcPositions = {
+    dawn:  { sun: [-4, 2.0, -6], moon: [3, 3.5, -7] },
+    day:   { sun: [0, 4.0, -7], moon: [-3, 3.0, -7] },
+    dusk:  { sun: [4, 1.8, -6], moon: [-1, 3.8, -7] },
+    night: { sun: [4, 1.8, -6], moon: [2, 4.0, -7] },
+  };
+
+  const sc = sunConfig[timeSlot] || sunConfig.day;
+  const mc = moonConfig[timeSlot] || moonConfig.night;
+  const arc = arcPositions[timeSlot] || arcPositions.day;
 
   useFrame((state) => {
-    if (!ref.current) return;
-    ref.current.position.y = c.pos[1] + Math.sin(state.clock.elapsedTime * 0.15) * 0.08;
+    const t = state.clock.elapsedTime;
+    if (sunRef.current) {
+      sunRef.current.position.x = arc.sun[0] + Math.sin(t * 0.08) * 0.3;
+      sunRef.current.position.y = arc.sun[1] + Math.sin(t * 0.12) * 0.15;
+    }
+    if (moonRef.current) {
+      moonRef.current.position.x = arc.moon[0] + Math.sin(t * 0.06 + 1) * 0.2;
+      moonRef.current.position.y = arc.moon[1] + Math.sin(t * 0.1 + 1) * 0.1;
+    }
   });
 
+  const showSun = timeSlot !== "night";
+  const showMoon = timeSlot === "night" || timeSlot === "dusk";
+
   return (
-    <group ref={ref} position={c.pos}>
-      <mesh>
-        <sphereGeometry args={[c.size, 32, 32]} />
-        <meshStandardMaterial color={c.color} emissive={c.emissive} emissiveIntensity={c.intensity} />
-      </mesh>
+    <group>
+      {showSun && (
+        <group ref={sunRef} position={arc.sun}>
+          <mesh>
+            <sphereGeometry args={[0.4, 32, 32]} />
+            <meshStandardMaterial color={sc.color} emissive={sc.emissive} emissiveIntensity={sc.intensity} />
+          </mesh>
+        </group>
+      )}
+      {showMoon && (
+        <group ref={moonRef} position={arc.moon}>
+          <mesh>
+            <sphereGeometry args={[0.28, 32, 32]} />
+            <meshStandardMaterial color={mc.color} emissive={mc.emissive} emissiveIntensity={mc.intensity} />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }
