@@ -40,6 +40,8 @@ export const CONTROL_OPTIONS = {
     { value: "pour", label: "倒茶" },
     { value: "serve", label: "盛茶杯" },
     { value: "brew", label: "候汤" },
+    { value: "smell", label: "闻香" },
+    { value: "serveGuest", label: "奉茶" },
   ],
 };
 

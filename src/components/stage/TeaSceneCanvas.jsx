@@ -41,33 +41,71 @@ function CameraRig({ perspective, sceneId }) {
   return null;
 }
 
-function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c49368", activeGesture, tableStyle }) {
+function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c89868", activeGesture, tableStyle }) {
   const gaiwanRef = useRef(null);
+  const cupRef = useRef(null);
+  const smellRef = useRef(0);
+  const serveGuestRef = useRef(0);
+  const pourRef = useRef(0);
+  const serveRef = useRef(0);
   const isPouring = activeGesture === "pour";
   const isBrewing = activeGesture === "brew";
-  const pourAngle = useRef(0);
-  const brewAngle = useRef(0);
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     if (!gaiwanRef.current) return;
     if (isPouring) {
-      pourAngle.current += delta * 0.8;
-      gaiwanRef.current.rotation.z = Math.sin(pourAngle.current) * 0.28;
-    } else if (isBrewing) {
-      brewAngle.current += delta * 1.8;
-      gaiwanRef.current.rotation.z = Math.sin(brewAngle.current) * 0.06;
-      gaiwanRef.current.rotation.x = Math.cos(brewAngle.current * 0.7) * 0.03;
+      pourRef.current = Math.min(pourRef.current + delta * 0.9, 1);
+    } else {
+      pourRef.current = Math.max(pourRef.current - delta * 0.8, 0);
+    }
+
+    if (activeGesture === "smell") {
+      smellRef.current = Math.min(smellRef.current + delta * 0.7, 1);
+    } else {
+      smellRef.current = Math.max(smellRef.current - delta * 0.6, 0);
+    }
+
+    if (activeGesture === "serveGuest") {
+      serveGuestRef.current = Math.min(serveGuestRef.current + delta * 0.6, 1);
+    } else {
+      serveGuestRef.current = Math.max(serveGuestRef.current - delta * 0.5, 0);
+    }
+
+    if (activeGesture === "serve") {
+      serveRef.current = Math.min(serveRef.current + delta * 0.7, 1);
+    } else {
+      serveRef.current = Math.max(serveRef.current - delta * 0.6, 0);
+    }
+
+    if (isPouring || isBrewing) {
+      gaiwanRef.current.rotation.z = Math.sin(pourRef.current * Math.PI) * 0.28 * (isBrewing ? 0.2 : 1);
+      gaiwanRef.current.rotation.x = isBrewing ? Math.cos(pourRef.current * Math.PI * 0.7) * 0.03 : 0;
     } else {
       gaiwanRef.current.rotation.z *= 0.94;
       gaiwanRef.current.rotation.x *= 0.94;
-      if (Math.abs(gaiwanRef.current.rotation.z) < 0.005) {
-        gaiwanRef.current.rotation.z = 0;
-      }
-      if (Math.abs(gaiwanRef.current.rotation.x) < 0.005) {
-        gaiwanRef.current.rotation.x = 0;
-      }
+      if (Math.abs(gaiwanRef.current.rotation.z) < 0.005) gaiwanRef.current.rotation.z = 0;
+      if (Math.abs(gaiwanRef.current.rotation.x) < 0.005) gaiwanRef.current.rotation.x = 0;
+    }
+
+    if (cupRef.current) {
+      const easeSmell = 1 - Math.pow(1 - smellRef.current, 3);
+      const easeServeGuest = 1 - Math.pow(1 - serveGuestRef.current, 3);
+      const easeServe = 1 - Math.pow(1 - serveRef.current, 3);
+      cupRef.current.position.y = 0.54 + easeSmell * 0.3 + easeServeGuest * 0.05;
+      cupRef.current.position.z = 0.08 + easeServe * 0.15;
+      const floatVal = serveGuestRef.current * Math.sin(state.clock.elapsedTime * 1.5) * 0.02;
+      cupRef.current.position.y += easeServeGuest * 0.4 + floatVal;
     }
   });
+
+  const pourSpoutCurve = useMemo(() => {
+    return new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, 0.6, -0.02),
+      new THREE.Vector3(0.1, 0.55, -0.02),
+      new THREE.Vector3(0.2, 0.48, 0.0),
+      new THREE.Vector3(0.22, 0.42, 0.02),
+    ]);
+  }, []);
 
   return (
     <Float speed={1.2} rotationIntensity={0.02} floatIntensity={0.06}>
@@ -90,27 +128,32 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c4936
         <group ref={gaiwanRef} position={[-0.1, 0.6, -0.02]}>
           <mesh>
             <cylinderGeometry args={[0.16, 0.2, 0.2, 24]} />
-            <meshStandardMaterial color="#f5ede3" roughness={0.2} />
+            <meshStandardMaterial color="#f8f2ea" roughness={0.2} />
           </mesh>
           <SteamParticles position={[0, 0.14, 0]} count={isBrewing ? 40 : 20} spread={0.08} riseSpeed={isBrewing ? 0.14 : 0.08} size={isBrewing ? 0.05 : 0.04} opacity={isBrewing ? 0.28 : 0.15} />
         </group>
 
+        <TeaPourParticles position={[0.15, 0.58, -0.02]} active={isPouring} count={30} />
+
         <mesh position={[0.3, 0.57, 0]}>
           <cylinderGeometry args={[0.08, 0.1, 0.16, 24]} />
-          <meshStandardMaterial color="#f8f0e8" roughness={0.15} />
+          <meshStandardMaterial color="#f8f2ea" roughness={0.18} />
         </mesh>
         <SteamParticles position={[0.3, 0.7, 0]} count={10} spread={0.04} riseSpeed={0.06} size={0.03} opacity={0.1} />
 
-        <mesh position={[-0.45, 0.54, 0.08]}>
-          <cylinderGeometry args={[0.07, 0.08, 0.09, 20]} />
-          <meshStandardMaterial color="#faf4ec" roughness={0.18} />
-        </mesh>
-        <GestureGlowRing active={activeGesture === "serve"} position={[-0.45, 0.55, 0.08]} />
+        <group ref={cupRef} position={[-0.45, 0.54, 0.08]}>
+          <mesh>
+            <cylinderGeometry args={[0.07, 0.08, 0.09, 20]} />
+            <meshStandardMaterial color="#f8f2ea" roughness={0.18} />
+          </mesh>
+          <GestureGlowRing active={activeGesture === "serve" || activeGesture === "smell" || activeGesture === "serveGuest"} position={[0, -0.01, 0]} />
+          <AromaParticles position={[0, 0.06, 0]} active={activeGesture === "smell"} count={18} />
+        </group>
 
         {tableStyle === "full" && (
           <mesh position={[0.02, 0.54, 0.18]}>
             <cylinderGeometry args={[0.07, 0.08, 0.09, 20]} />
-            <meshStandardMaterial color="#faf4ec" roughness={0.18} />
+            <meshStandardMaterial color="#f8f2ea" roughness={0.18} />
           </mesh>
         )}
       </group>
@@ -155,11 +198,11 @@ function FirstPersonCup() {
     <group position={[0.05, 0.16, 1.18]}>
       <mesh position={[0, 0.03, 0]}>
         <cylinderGeometry args={[0.12, 0.14, 0.18, 24]} />
-        <meshStandardMaterial color="#f5ede3" roughness={0.22} />
+        <meshStandardMaterial color="#f8f2ea" roughness={0.22} />
       </mesh>
       <mesh position={[0, -0.1, 0]}>
         <cylinderGeometry args={[0.14, 0.15, 0.03, 24]} />
-        <meshStandardMaterial color="#c89870" roughness={0.75} />
+        <meshStandardMaterial color="#c89868" roughness={0.75} />
       </mesh>
       <mesh position={[0.18, 0.02, 0]} rotation={[0, 0, Math.PI / 2]}>
         <torusGeometry args={[0.08, 0.02, 12, 18]} />
@@ -179,15 +222,15 @@ function FirstPersonTeaFocus({ active, sceneId }) {
       </mesh>
       <mesh position={[0, tableY + 0.1, 1.45]}>
         <cylinderGeometry args={[0.18, 0.21, 0.22, 24]} />
-        <meshStandardMaterial color="#f5ede3" roughness={0.18} />
+        <meshStandardMaterial color="#f8f2ea" roughness={0.18} />
       </mesh>
       <mesh position={[0.42, tableY + 0.08, 1.55]}>
         <cylinderGeometry args={[0.08, 0.09, 0.13, 20]} />
-        <meshStandardMaterial color="#f8f0e8" roughness={0.18} />
+        <meshStandardMaterial color="#f8f2ea" roughness={0.18} />
       </mesh>
       <mesh position={[-0.42, tableY + 0.08, 1.55]}>
         <cylinderGeometry args={[0.08, 0.09, 0.13, 20]} />
-        <meshStandardMaterial color="#f8f0e8" roughness={0.18} />
+        <meshStandardMaterial color="#f8f2ea" roughness={0.18} />
       </mesh>
       <mesh position={[0, tableY + 0.17, 1.7]} rotation={[0, 0, active ? 0.12 : 0]}>
         <torusGeometry args={[0.22, 0.02, 12, 24]} />
@@ -378,6 +421,96 @@ function SteamParticles({ position = [0, 0.5, 0], count = 40, spread = 0.15, ris
         />
       </bufferGeometry>
       <pointsMaterial color="#f5ede3" size={size} transparent opacity={opacity} depthWrite={false} />
+    </points>
+  );
+}
+
+function TeaPourParticles({ position = [0, 0.6, 0], active = false, count = 30 }) {
+  const pointsRef = useRef(null);
+  const posArray = useMemo(() => {
+    const values = new Float32Array(count * 3);
+    for (let i = 0; i < count; i += 1) {
+      values[i * 3] = (Math.random() - 0.5) * 0.04;
+      values[i * 3 + 1] = -Math.random() * 0.3;
+      values[i * 3 + 2] = (Math.random() - 0.5) * 0.04;
+    }
+    return values;
+  }, [count]);
+
+  useFrame((state, delta) => {
+    if (!pointsRef.current || !active) return;
+    const geo = pointsRef.current.geometry;
+    const pos = geo.attributes.position;
+    for (let i = 0; i < count; i += 1) {
+      pos.array[i * 3 + 1] -= delta * 0.6;
+      pos.array[i * 3] += Math.sin(state.clock.elapsedTime * 3 + i) * 0.0008;
+      if (pos.array[i * 3 + 1] < -0.35) {
+        pos.array[i * 3] = (Math.random() - 0.5) * 0.04;
+        pos.array[i * 3 + 1] = 0;
+        pos.array[i * 3 + 2] = (Math.random() - 0.5) * 0.04;
+      }
+    }
+    pos.needsUpdate = true;
+  });
+
+  if (!active) return null;
+
+  return (
+    <points ref={pointsRef} position={position}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          count={count}
+          array={posArray}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <pointsMaterial color="#8a6a30" size={0.018} transparent opacity={0.5} depthWrite={false} />
+    </points>
+  );
+}
+
+function AromaParticles({ position = [0, 0, 0], active = false, count = 20 }) {
+  const pointsRef = useRef(null);
+  const posArray = useMemo(() => {
+    const values = new Float32Array(count * 3);
+    for (let i = 0; i < count; i += 1) {
+      values[i * 3] = (Math.random() - 0.5) * 0.12;
+      values[i * 3 + 1] = Math.random() * 0.25;
+      values[i * 3 + 2] = (Math.random() - 0.5) * 0.12;
+    }
+    return values;
+  }, [count]);
+
+  useFrame((state, delta) => {
+    if (!pointsRef.current || !active) return;
+    const geo = pointsRef.current.geometry;
+    const pos = geo.attributes.position;
+    for (let i = 0; i < count; i += 1) {
+      pos.array[i * 3 + 1] += delta * 0.12;
+      pos.array[i * 3] += Math.sin(state.clock.elapsedTime * 1.5 + i * 0.7) * 0.0006;
+      if (pos.array[i * 3 + 1] > 0.5) {
+        pos.array[i * 3] = (Math.random() - 0.5) * 0.12;
+        pos.array[i * 3 + 1] = 0;
+        pos.array[i * 3 + 2] = (Math.random() - 0.5) * 0.12;
+      }
+    }
+    pos.needsUpdate = true;
+  });
+
+  if (!active) return null;
+
+  return (
+    <points ref={pointsRef} position={position}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          count={count}
+          array={posArray}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <pointsMaterial color="#f0e8d8" size={0.025} transparent opacity={0.35} depthWrite={false} />
     </points>
   );
 }
@@ -1138,7 +1271,7 @@ function RectTeaTable3D({ activeGesture, tableStyle }) {
         </mesh>
         <mesh position={[0, 0.49, -0.18]} castShadow receiveShadow>
           <boxGeometry args={[2.46, 0.1, 0.96]} />
-          <meshStandardMaterial color="#b88458" roughness={0.68} />
+          <meshStandardMaterial color="#c89868" roughness={0.68} />
         </mesh>
         <mesh position={[0, 0.57, -0.18]}>
           <boxGeometry args={[2.16, 0.035, 0.72]} />
@@ -1160,76 +1293,123 @@ function TeaSetOnTray({ activeGesture, tableStyle }) {
   const isPouring = activeGesture === "pour";
   const isBrewing = activeGesture === "brew";
   const teapotGroupRef = useRef(null);
-  const pourAngle = useRef(0);
-  const brewAngle = useRef(0);
+  const cup0Ref = useRef(null);
+  const smellRef = useRef(0);
+  const serveGuestRef = useRef(0);
+  const pourRef = useRef(0);
+  const serveRef = useRef(0);
 
-  useFrame((_, delta) => {
-    if (!teapotGroupRef.current) return;
-    if (isPouring) {
-      pourAngle.current += delta * 0.8;
-      teapotGroupRef.current.rotation.z = Math.sin(pourAngle.current) * 0.32;
-    } else if (isBrewing) {
-      brewAngle.current += delta * 1.8;
-      teapotGroupRef.current.rotation.z = Math.sin(brewAngle.current) * 0.06;
-      teapotGroupRef.current.rotation.x = Math.cos(brewAngle.current * 0.7) * 0.035;
-    } else {
-      teapotGroupRef.current.rotation.z *= 0.94;
-      teapotGroupRef.current.rotation.x *= 0.94;
-      if (Math.abs(teapotGroupRef.current.rotation.z) < 0.005) {
-        teapotGroupRef.current.rotation.z = 0;
+  useFrame((state, delta) => {
+    if (teapotGroupRef.current) {
+      if (isPouring) {
+        pourRef.current = Math.min(pourRef.current + delta * 0.9, 1);
+      } else {
+        pourRef.current = Math.max(pourRef.current - delta * 0.8, 0);
       }
-      if (Math.abs(teapotGroupRef.current.rotation.x) < 0.005) {
-        teapotGroupRef.current.rotation.x = 0;
+      if (isBrewing) {
+        teapotGroupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 1.8) * 0.06;
+        teapotGroupRef.current.rotation.x = Math.cos(state.clock.elapsedTime * 1.26) * 0.035;
+      } else if (pourRef.current > 0) {
+        teapotGroupRef.current.rotation.z = Math.sin(pourRef.current * Math.PI) * 0.32;
+      } else {
+        teapotGroupRef.current.rotation.z *= 0.94;
+        teapotGroupRef.current.rotation.x *= 0.94;
+        if (Math.abs(teapotGroupRef.current.rotation.z) < 0.005) teapotGroupRef.current.rotation.z = 0;
+        if (Math.abs(teapotGroupRef.current.rotation.x) < 0.005) teapotGroupRef.current.rotation.x = 0;
       }
     }
+
+    if (activeGesture === "smell") {
+      smellRef.current = Math.min(smellRef.current + delta * 0.7, 1);
+    } else {
+      smellRef.current = Math.max(smellRef.current - delta * 0.6, 0);
+    }
+
+    if (activeGesture === "serveGuest") {
+      serveGuestRef.current = Math.min(serveGuestRef.current + delta * 0.6, 1);
+    } else {
+      serveGuestRef.current = Math.max(serveGuestRef.current - delta * 0.5, 0);
+    }
+
+    if (activeGesture === "serve") {
+      serveRef.current = Math.min(serveRef.current + delta * 0.7, 1);
+    } else {
+      serveRef.current = Math.max(serveRef.current - delta * 0.6, 0);
+    }
+
+    if (cup0Ref.current) {
+      const easeSmell = 1 - Math.pow(1 - smellRef.current, 3);
+      const easeServeGuest = 1 - Math.pow(1 - serveGuestRef.current, 3);
+      const easeServe = 1 - Math.pow(1 - serveRef.current, 3);
+      cup0Ref.current.position.y = 0.07 + easeSmell * 0.3;
+      cup0Ref.current.position.z = 0.2 + easeServe * 0.15;
+      const floatVal = serveGuestRef.current * Math.sin(state.clock.elapsedTime * 1.5) * 0.02;
+      cup0Ref.current.position.y += easeServeGuest * 0.45 + floatVal;
+      cup0Ref.current.position.z += easeServeGuest * 0.4;
+    }
   });
+
+  const spoutCurve = useMemo(() => {
+    return new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.28, 0.03, 0),
+      new THREE.Vector3(-0.36, 0.07, 0),
+      new THREE.Vector3(-0.44, 0.12, 0),
+      new THREE.Vector3(-0.48, 0.18, 0),
+    ]);
+  }, []);
 
   return (
     <group position={[0, 0.58, -0.08]}>
       <group ref={teapotGroupRef} position={[0.78, 0.16, -0.08]}>
         <mesh castShadow>
           <sphereGeometry args={[0.22, 24, 16]} />
-          <meshStandardMaterial color="#483c32" roughness={0.38} />
+          <meshStandardMaterial color="#5a4a3a" roughness={0.38} />
         </mesh>
         <mesh position={[0, 0.22, 0]}>
           <cylinderGeometry args={[0.08, 0.12, 0.08, 24]} />
-          <meshStandardMaterial color="#3a3028" roughness={0.42} />
+          <meshStandardMaterial color="#4a3a2a" roughness={0.42} />
         </mesh>
         <mesh position={[0.3, 0.02, -0.01]} rotation={[0, 0, Math.PI / 2]}>
           <torusGeometry args={[0.15, 0.025, 10, 24]} />
-          <meshStandardMaterial color="#42362c" roughness={0.42} />
+          <meshStandardMaterial color="#4a3a2a" roughness={0.42} />
         </mesh>
-        <mesh position={[-0.28, 0.03, 0]} rotation={[0, 0.15, -0.4]}>
-          <coneGeometry args={[0.08, 0.42, 18]} />
-          <meshStandardMaterial color="#42362c" roughness={0.42} />
+        <mesh castShadow>
+          <tubeGeometry args={[spoutCurve, 20, 0.032, 10, false]} />
+          <meshStandardMaterial color="#4a3a2a" roughness={0.42} />
         </mesh>
+        <TeaPourParticles position={[0, 0.16, -0.08]} active={isPouring} count={35} />
         <SteamParticles position={[0, 0.28, 0]} count={isBrewing ? 55 : 30} spread={0.1} riseSpeed={isBrewing ? 0.16 : 0.1} size={isBrewing ? 0.06 : 0.05} opacity={isBrewing ? 0.3 : 0.18} />
       </group>
 
       <group position={[-0.05, 0.14, -0.06]}>
         <mesh castShadow>
           <cylinderGeometry args={[0.16, 0.2, 0.36, 24]} />
-          <meshPhysicalMaterial color="#e8ddd0" roughness={0.1} transmission={0.18} transparent opacity={0.55} />
+          <meshPhysicalMaterial color="#f8f2ea" roughness={0.18} transmission={0.18} transparent opacity={0.55} />
         </mesh>
         <mesh position={[0.21, 0.02, 0]} rotation={[0, 0, Math.PI / 2]}>
           <torusGeometry args={[0.12, 0.018, 10, 22]} />
-          <meshStandardMaterial color="#ddd0c0" roughness={0.24} />
+          <meshStandardMaterial color="#f0e8dc" roughness={0.24} />
         </mesh>
         <SteamParticles position={[0, 0.22, 0]} count={isBrewing ? 38 : 20} spread={0.08} riseSpeed={isBrewing ? 0.13 : 0.08} size={isBrewing ? 0.05 : 0.04} opacity={isBrewing ? 0.26 : 0.14} />
       </group>
 
       {[[-0.72, 0.07, 0.2], [-0.34, 0.07, 0.28], [0.27, 0.07, 0.27], [0.55, 0.07, 0.22]].slice(0, tableStyle === "full" ? 4 : 2).map((position, index) => (
-        <group key={index} position={position}>
+        <group key={index} ref={index === 0 ? cup0Ref : undefined} position={position}>
           <mesh castShadow>
             <cylinderGeometry args={[0.105, 0.13, 0.14, 24]} />
-            <meshStandardMaterial color="#f5ede3" roughness={0.2} />
+            <meshStandardMaterial color="#f8f2ea" roughness={0.2} />
           </mesh>
           <mesh position={[0, 0.08, 0]}>
             <cylinderGeometry args={[0.088, 0.094, 0.015, 24]} />
-            <meshStandardMaterial color="#b88050" emissive="#8a5030" emissiveIntensity={0.08} roughness={0.35} />
+            <meshStandardMaterial color="#c89868" emissive="#a07040" emissiveIntensity={0.08} roughness={0.35} />
           </mesh>
           <SteamParticles position={[0, 0.1, 0]} count={12} spread={0.05} riseSpeed={0.06} size={0.03} opacity={0.1} />
-          <GestureGlowRing active={activeGesture === "serve" && index === 0} position={[0, 0.02, 0]} />
+          {index === 0 && (
+            <>
+              <GestureGlowRing active={activeGesture === "serve" || activeGesture === "smell" || activeGesture === "serveGuest"} position={[0, 0.02, 0]} />
+              <AromaParticles position={[0, 0.12, 0]} active={activeGesture === "smell"} count={18} />
+            </>
+          )}
         </group>
       ))}
     </group>
