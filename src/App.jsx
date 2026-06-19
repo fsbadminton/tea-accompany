@@ -31,6 +31,8 @@ function App() {
     try { return !sessionStorage.getItem("tea-welcomed"); } catch { return true; }
   });
   const audioRef = useRef(null);
+  const audioCtxRef = useRef(null);
+  const audioNodesRef = useRef(null);
 
   const handleSceneChange = useCallback((newSceneId) => {
     if (newSceneId === sceneId) return;
@@ -79,85 +81,139 @@ function App() {
     return currentScene.moods[currentTimeSlot]?.[weather] ?? currentScene.moods.day.clear;
   }, [currentScene, currentTimeSlot, weather]);
 
+  // Create AudioContext once; only update parameters on scene/weather changes
   useEffect(() => {
-    if (!audioEnabled) {
-      audioRef.current?.stop?.();
-      audioRef.current = null;
-      return undefined;
-    }
-
     const AudioContextImpl = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextImpl) return undefined;
 
-    const context = new AudioContextImpl();
-    const master = context.createGain();
-    master.gain.value = 0.055;
-    master.connect(context.destination);
-
-    const lowDrone = context.createOscillator();
-    lowDrone.type = "sine";
-    lowDrone.frequency.value = sceneId === "tearoom" ? 68 : 52;
-
-    const lowGain = context.createGain();
-    lowGain.gain.value = 0.18;
-    lowDrone.connect(lowGain);
-    lowGain.connect(master);
-
-    const windNoise = context.createBufferSource();
-    const buffer = context.createBuffer(1, context.sampleRate * 2, context.sampleRate);
-    const channel = buffer.getChannelData(0);
-    for (let i = 0; i < channel.length; i += 1) {
-      channel[i] = (Math.random() * 2 - 1) * 0.5;
+    // Create context only once
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new AudioContextImpl();
     }
-    windNoise.buffer = buffer;
-    windNoise.loop = true;
+    const context = audioCtxRef.current;
 
-    const windFilter = context.createBiquadFilter();
-    windFilter.type = "lowpass";
-    windFilter.frequency.value = weather === "rain" ? 820 : 520;
+    // Create nodes only once
+    if (!audioNodesRef.current) {
+      const master = context.createGain();
+      master.gain.value = 0.055;
+      master.connect(context.destination);
 
-    const windGain = context.createGain();
-    windGain.gain.value = weather === "rain" ? 0.18 : 0.08;
-    windNoise.connect(windFilter);
-    windFilter.connect(windGain);
-    windGain.connect(master);
+      const lowDrone = context.createOscillator();
+      lowDrone.type = "sine";
+      lowDrone.frequency.value = 68;
+      const lowGain = context.createGain();
+      lowGain.gain.value = 0.18;
+      lowDrone.connect(lowGain);
+      lowGain.connect(master);
+      lowDrone.start();
 
-    const rainNoise = context.createBufferSource();
-    rainNoise.buffer = buffer;
-    rainNoise.loop = true;
+      const buffer = context.createBuffer(1, context.sampleRate * 2, context.sampleRate);
+      const channel = buffer.getChannelData(0);
+      for (let i = 0; i < channel.length; i += 1) {
+        channel[i] = (Math.random() * 2 - 1) * 0.5;
+      }
 
-    const rainFilter = context.createBiquadFilter();
-    rainFilter.type = "highpass";
-    rainFilter.frequency.value = 1700;
+      const windNoise = context.createBufferSource();
+      windNoise.buffer = buffer;
+      windNoise.loop = true;
+      const windFilter = context.createBiquadFilter();
+      windFilter.type = "lowpass";
+      windFilter.frequency.value = 520;
+      const windGain = context.createGain();
+      windGain.gain.value = 0.08;
+      windNoise.connect(windFilter);
+      windFilter.connect(windGain);
+      windGain.connect(master);
+      windNoise.start();
 
-    const rainGain = context.createGain();
-    rainGain.gain.value = weather === "rain" ? 0.12 : 0.01;
-    rainNoise.connect(rainFilter);
-    rainFilter.connect(rainGain);
-    rainGain.connect(master);
+      const rainNoise = context.createBufferSource();
+      rainNoise.buffer = buffer;
+      rainNoise.loop = true;
+      const rainFilter = context.createBiquadFilter();
+      rainFilter.type = "highpass";
+      rainFilter.frequency.value = 1700;
+      const rainGain = context.createGain();
+      rainGain.gain.value = 0.01;
+      rainNoise.connect(rainFilter);
+      rainFilter.connect(rainGain);
+      rainGain.connect(master);
+      rainNoise.start();
 
-    lowDrone.start();
-    windNoise.start();
-    rainNoise.start();
+      audioNodesRef.current = {
+        master, lowDrone, lowGain,
+        windFilter, windGain,
+        rainFilter, rainGain,
+      };
+    }
 
-    audioRef.current = {
-      stop: () => {
-        try {
-          lowDrone.stop();
-          windNoise.stop();
-          rainNoise.stop();
-        } catch {
-          // ignore cleanup races
-        }
-        context.close();
-      },
-    };
+    // Update parameters (no node recreation)
+    const nodes = audioNodesRef.current;
+    nodes.lowDrone.frequency.setTargetAtTime(
+      sceneId === "tearoom" ? 68 : 52, context.currentTime, 0.1
+    );
+    nodes.windFilter.frequency.setTargetAtTime(
+      weather === "rain" ? 820 : 520, context.currentTime, 0.1
+    );
+    nodes.windGain.gain.setTargetAtTime(
+      weather === "rain" ? 0.18 : 0.08, context.currentTime, 0.1
+    );
+    nodes.rainGain.gain.setTargetAtTime(
+      weather === "rain" ? 0.12 : 0.01, context.currentTime, 0.1
+    );
 
+    // Suspend/resume based on audioEnabled
+    if (audioEnabled && context.state === "suspended") {
+      context.resume();
+    } else if (!audioEnabled && context.state === "running") {
+      context.suspend();
+    }
+
+    // Cleanup on unmount only
     return () => {
-      audioRef.current?.stop?.();
-      audioRef.current = null;
+      if (audioNodesRef.current) {
+        try {
+          audioNodesRef.current.lowDrone.stop();
+          audioNodesRef.current.windGain.disconnect();
+          audioNodesRef.current.rainGain.disconnect();
+        } catch { /* ignore */ }
+        audioNodesRef.current = null;
+      }
+      if (audioCtxRef.current) {
+        audioCtxRef.current.close();
+        audioCtxRef.current = null;
+      }
     };
-  }, [audioEnabled, sceneId, weather]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // React to audioEnabled toggle separately
+  useEffect(() => {
+    const ctx = audioCtxRef.current;
+    if (!ctx) return;
+    if (audioEnabled && ctx.state === "suspended") {
+      ctx.resume();
+    } else if (!audioEnabled && ctx.state === "running") {
+      ctx.suspend();
+    }
+  }, [audioEnabled]);
+
+  // React to sceneId / weather parameter changes
+  useEffect(() => {
+    const nodes = audioNodesRef.current;
+    const ctx = audioCtxRef.current;
+    if (!nodes || !ctx) return;
+    nodes.lowDrone.frequency.setTargetAtTime(
+      sceneId === "tearoom" ? 68 : 52, ctx.currentTime, 0.1
+    );
+    nodes.windFilter.frequency.setTargetAtTime(
+      weather === "rain" ? 820 : 520, ctx.currentTime, 0.1
+    );
+    nodes.windGain.gain.setTargetAtTime(
+      weather === "rain" ? 0.18 : 0.08, ctx.currentTime, 0.1
+    );
+    nodes.rainGain.gain.setTargetAtTime(
+      weather === "rain" ? 0.12 : 0.01, ctx.currentTime, 0.1
+    );
+  }, [sceneId, weather]);
 
   const welcomeQuote = useMemo(() => {
     const initialSlot = getTimeSlotFromHour(new Date().getHours());

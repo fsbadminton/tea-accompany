@@ -236,6 +236,12 @@ const SILHOUETTE_LAYOUT = {
   ],
 };
 
+const GUEST_STYLES = [
+  { color: "#2a2018", scale: 1.0 },   // warm dark brown
+  { color: "#1e2228", scale: 0.95 },  // deep blue-gray
+  { color: "#2c1a1a", scale: 1.05 },  // dark maroon
+];
+
 function SilhouetteGuests({ perspective, sceneId, occupancy }) {
   if (perspective === "firstPerson") return null;
 
@@ -244,18 +250,22 @@ function SilhouetteGuests({ perspective, sceneId, occupancy }) {
 
   return (
     <group>
-      {seats.slice(0, count).map((position, index) => (
-        <group key={index} position={position}>
-          <mesh position={[0, 0.5, 0]}>
-            <sphereGeometry args={[0.18, 18, 18]} />
-            <meshStandardMaterial color="#182022" transparent opacity={0.72} />
-          </mesh>
-          <mesh position={[0, 0.02, 0]}>
-            <capsuleGeometry args={[0.2, 0.52, 6, 12]} />
-            <meshStandardMaterial color="#182022" transparent opacity={0.72} />
-          </mesh>
-        </group>
-      ))}
+      {seats.slice(0, count).map((position, index) => {
+        const style = GUEST_STYLES[index % GUEST_STYLES.length];
+        const s = style.scale;
+        return (
+          <group key={index} position={position} scale={[s, s, s]}>
+            <mesh position={[0, 0.5, 0]}>
+              <sphereGeometry args={[0.18, 18, 18]} />
+              <meshStandardMaterial color={style.color} transparent opacity={0.72} />
+            </mesh>
+            <mesh position={[0, 0.02, 0]}>
+              <capsuleGeometry args={[0.2, 0.52, 6, 12]} />
+              <meshStandardMaterial color={style.color} transparent opacity={0.72} />
+            </mesh>
+          </group>
+        );
+      })}
     </group>
   );
 }
@@ -1246,14 +1256,20 @@ function SharedLighting({ mood, intensity = 1.5, spotColor = "#f9ead8", fogRange
 }
 
 function LakesideScene({ mood, weather, perspective, activeGesture, tableStyle, occupancy }) {
+  const skyColor = weather === "rain" ? "#6a8898" : "#5ac8e8";
   return (
     <>
       <SharedLighting mood={mood} intensity={1.6} />
+      {/* Background landscape */}
+      <SkyGradient color={skyColor} />
+      <LayeredMountains timeSlot="day" weather={weather} />
+      {/* Ground and water */}
       <mesh rotation-x={-Math.PI / 2} receiveShadow position={[0, -0.42, 0]}>
         <planeGeometry args={[24, 20]} />
         <meshStandardMaterial color="#6a7b72" roughness={0.9} />
       </mesh>
       <AnimatedWater color={weather === "rain" ? "#6e8d97" : "#86a9b7"} />
+      {/* Mid-ground mountains */}
       <Mountain position={[-5.4, 1.1, -7.8]} scale={[2.3, 2.5, 2.3]} color="#6e827f" />
       <Mountain position={[0.8, 1.35, -8.2]} scale={[2.8, 3.2, 2.7]} color="#778d8c" />
       <Mountain position={[5.7, 1, -7.5]} scale={[2.2, 2.4, 2.2]} color="#69807d" />
@@ -1274,9 +1290,14 @@ function LakesideScene({ mood, weather, perspective, activeGesture, tableStyle, 
 }
 
 function CourtyardScene({ mood, weather, perspective, activeGesture, tableStyle, occupancy }) {
+  const skyColor = weather === "rain" ? "#6a8898" : "#78c8e0";
   return (
     <>
       <SharedLighting mood={mood} intensity={1.25} spotColor="#e7dccf" />
+      {/* Background landscape */}
+      <SkyGradient color={skyColor} />
+      <LayeredMountains timeSlot="day" weather={weather} />
+      {/* Ground */}
       <mesh rotation-x={-Math.PI / 2} receiveShadow position={[0, -0.36, 0]}>
         <planeGeometry args={[20, 20]} />
         <meshStandardMaterial color="#556058" roughness={1} />
@@ -1285,9 +1306,13 @@ function CourtyardScene({ mood, weather, perspective, activeGesture, tableStyle,
       <StonePath />
       <BambooCluster x={-4.1} z={-1.7} />
       <BambooCluster x={4.2} z={-2.2} />
+      {/* Mid-ground mountains */}
       <Mountain position={[-6.2, 1.4, -7.5]} scale={[2.8, 3.4, 2.8]} color="#58685e" />
       <Mountain position={[0.2, 1.8, -8.4]} scale={[3.4, 4.2, 3.4]} color="#65766b" />
       <Mountain position={[6.1, 1.2, -7.1]} scale={[2.4, 3, 2.4]} color="#536157" />
+      {/* Distant bamboo */}
+      <BambooCluster x={-6} z={-5.5} />
+      <BambooCluster x={6.5} z={-5} />
       <TeaTable3D position={[0, 0.18, 0.6]} wood="#826450" tray="#c09068" activeGesture={activeGesture} tableStyle={tableStyle} />
       <SilhouetteGuests perspective={perspective} sceneId="courtyard" occupancy={occupancy} />
       {perspective === "firstPerson" && (
