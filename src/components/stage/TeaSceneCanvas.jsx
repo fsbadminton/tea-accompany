@@ -1,9 +1,12 @@
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Environment, Float, OrbitControls } from "@react-three/drei";
+import { Float, OrbitControls } from "@react-three/drei";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 
 function CameraRig({ perspective, sceneId }) {
+  const targetPosition = useRef(new THREE.Vector3());
+  const targetLookAt = useRef(new THREE.Vector3());
+
   useFrame((state) => {
     const sceneTargets = {
       lakeside: {
@@ -28,11 +31,11 @@ function CameraRig({ perspective, sceneId }) {
 
     const presets = sceneTargets[sceneId] ?? sceneTargets.lakeside;
     const current = presets[perspective] ?? presets.firstPerson;
-    const targetPosition = new THREE.Vector3(...current.position);
-    const targetLookAt = new THREE.Vector3(...current.lookAt);
+    targetPosition.current.fromArray(current.position);
+    targetLookAt.current.fromArray(current.lookAt);
 
-    state.camera.position.lerp(targetPosition, 0.05);
-    state.camera.lookAt(targetLookAt);
+    state.camera.position.lerp(targetPosition.current, 0.05);
+    state.camera.lookAt(targetLookAt.current);
   });
 
   return null;
@@ -105,20 +108,19 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#7c5538", tray = "#b4835
   );
 }
 
-function FirstPersonHands({ active }) {
+function FirstPersonHands() {
   const leftRef = useRef(null);
   const rightRef = useRef(null);
 
   useFrame((state) => {
     const t = state.clock.elapsedTime;
-    const targetLift = active ? 0.02 : -0.16;
     if (leftRef.current) {
-      leftRef.current.position.y = -0.08 + Math.sin(t * 1.4) * 0.03 + targetLift;
+      leftRef.current.position.y = -0.08 + Math.sin(t * 1.4) * 0.03 + 0.02;
       leftRef.current.position.x = -1.85 + Math.sin(t * 0.7) * 0.02;
       leftRef.current.rotation.z = 0.1 + Math.sin(t * 0.9) * 0.03;
     }
     if (rightRef.current) {
-      rightRef.current.position.y = -0.1 + Math.cos(t * 1.2) * 0.03 + targetLift;
+      rightRef.current.position.y = -0.1 + Math.cos(t * 1.2) * 0.03 + 0.02;
       rightRef.current.position.x = 1.82 + Math.cos(t * 0.8) * 0.02;
       rightRef.current.rotation.z = -0.12 + Math.cos(t * 0.85) * 0.03;
     }
@@ -185,56 +187,6 @@ function FirstPersonTeaFocus({ active, sceneId }) {
   );
 }
 
-function PourEffect({ active, teapotPosition = [0.78, 0.16, -0.08] }) {
-  const teapotRef = useRef(null);
-  const pouring = useRef(false);
-  const angle = useRef(0);
-
-  useFrame((state, delta) => {
-    if (!teapotRef.current) return;
-    if (active) {
-      pouring.current = true;
-    }
-    if (pouring.current) {
-      angle.current += delta * 0.8;
-      const tilt = Math.sin(angle.current) * 0.35;
-      teapotRef.current.rotation.z = active ? tilt : tilt * Math.max(0, 1 - (angle.current % 6));
-      if (!active && angle.current % (Math.PI * 2) > Math.PI * 1.8) {
-        pouring.current = false;
-        teapotRef.current.rotation.z = 0;
-        angle.current = 0;
-      }
-    }
-  });
-
-  return (
-    <group ref={teapotRef} position={teapotPosition}>
-      <mesh castShadow>
-        <sphereGeometry args={[0.22, 24, 16]} />
-        <meshStandardMaterial color="#2e2620" roughness={0.42} />
-      </mesh>
-      <mesh position={[0, 0.22, 0]}>
-        <cylinderGeometry args={[0.08, 0.12, 0.08, 24]} />
-        <meshStandardMaterial color="#1f1915" roughness={0.5} />
-      </mesh>
-      <mesh position={[0.3, 0.02, -0.01]} rotation={[0, 0, Math.PI / 2]}>
-        <torusGeometry args={[0.15, 0.025, 10, 24]} />
-        <meshStandardMaterial color="#2b211b" roughness={0.5} />
-      </mesh>
-      <mesh position={[-0.28, 0.03, 0]} rotation={[0, 0.15, -0.4]}>
-        <coneGeometry args={[0.08, 0.42, 18]} />
-        <meshStandardMaterial color="#2b211b" roughness={0.5} />
-      </mesh>
-      {active && (
-        <mesh position={[-0.28, -0.15, 0]} rotation={[0, 0.15, -0.4]}>
-          <cylinderGeometry args={[0.012, 0.02, 0.25, 8]} />
-          <meshStandardMaterial color="#d4c4a8" transparent opacity={0.5} emissive="#c8b898" emissiveIntensity={0.3} />
-        </mesh>
-      )}
-    </group>
-  );
-}
-
 function GestureGlowRing({ active, position = [0, 0, 0] }) {
   const ringRef = useRef(null);
 
@@ -256,28 +208,28 @@ function GestureGlowRing({ active, position = [0, 0, 0] }) {
   );
 }
 
+const SILHOUETTE_LAYOUT = {
+  lakeside: [
+    [0, 0.42, -0.65],
+    [-1.65, 0.42, 0.55],
+    [1.65, 0.42, 0.55],
+  ],
+  courtyard: [
+    [0, 0.42, -0.92],
+    [-1.85, 0.42, 0.25],
+    [1.85, 0.42, 0.25],
+  ],
+  tearoom: [
+    [0, 0.42, -1.1],
+    [-1.75, 0.42, -0.05],
+    [1.75, 0.42, -0.05],
+  ],
+};
+
 function SilhouetteGuests({ perspective, sceneId, occupancy }) {
   if (perspective === "firstPerson") return null;
 
-  const layout = {
-    lakeside: [
-      [0, 0.42, -0.65],
-      [-1.65, 0.42, 0.55],
-      [1.65, 0.42, 0.55],
-    ],
-    courtyard: [
-      [0, 0.42, -0.92],
-      [-1.85, 0.42, 0.25],
-      [1.85, 0.42, 0.25],
-    ],
-    tearoom: [
-      [0, 0.42, -1.1],
-      [-1.75, 0.42, -0.05],
-      [1.75, 0.42, -0.05],
-    ],
-  };
-
-  const seats = layout[sceneId] ?? layout.lakeside;
+  const seats = SILHOUETTE_LAYOUT[sceneId] ?? SILHOUETTE_LAYOUT.lakeside;
   const count = occupancy === "solo" ? 1 : occupancy === "duo" ? 2 : 3;
 
   return (
@@ -308,7 +260,7 @@ function RainParticles({ visible, area = [12, 7, 10], size = 0.05, opacity = 0.7
       values[i * 3 + 2] = (Math.random() - 0.5) * area[2];
     }
     return values;
-  }, [area]);
+  }, []);
 
   useFrame((state) => {
     if (!rainRef.current || !visible) return;
@@ -342,7 +294,7 @@ function FloatingMotes({ color = "#ffffff", count = 160, area = [10, 4, 8], spee
       values[i * 3 + 2] = (Math.random() - 0.5) * area[2];
     }
     return values;
-  }, [area, count]);
+  }, []);
 
   useFrame((state) => {
     if (!motesRef.current) return;
@@ -675,7 +627,7 @@ function OpenWindowLeaf({ side }) {
       ))}
       <mesh position={[sign * leafWidth * 0.5, 0, 0.055]}>
         <planeGeometry args={[leafWidth - 0.34, leafHeight - 0.38]} />
-        <meshPhysicalMaterial color="#a9beb9" roughness={0.08} transmission={0.36} transparent opacity={0.14} />
+        <meshPhysicalMaterial color="#a9beb9" roughness={0.4} transmission={0.1} transparent opacity={0.14} />
       </mesh>
       <mesh position={[sign * leafWidth * 0.5, 0, 0.11]}>
         <boxGeometry args={[0.08, leafHeight - 0.3, 0.08]} />
@@ -693,19 +645,7 @@ function OpenWindowLeaf({ side }) {
   );
 }
 
-function SkyGradient({ timeSlot, weather }) {
-  const colors = {
-    dawn:  "#f0a878",
-    day:   "#4ab8d8",
-    dusk:  "#e88858",
-    night: "#1a2840",
-  };
-  const color = weather === "rain"
-    ? (timeSlot === "night" ? "#142030" : "#5a7888")
-    : weather === "overcast"
-    ? (timeSlot === "night" ? "#1a2535" : "#788898")
-    : colors[timeSlot] || colors.day;
-
+function SkyGradient({ color }) {
   return (
     <mesh position={[0, 2, -7]}>
       <planeGeometry args={[30, 10]} />
@@ -1057,9 +997,21 @@ function ShorelineReeds({ weather }) {
 }
 
 function WindowLandscape({ weather, timeSlot }) {
+  const skyColors = {
+    dawn:  "#f0a878",
+    day:   "#4ab8d8",
+    dusk:  "#e88858",
+    night: "#1a2840",
+  };
+  const skyColor = weather === "rain"
+    ? (timeSlot === "night" ? "#142030" : "#5a7888")
+    : weather === "overcast"
+    ? (timeSlot === "night" ? "#1a2535" : "#788898")
+    : skyColors[timeSlot] || skyColors.day;
+
   return (
     <group position={[0, 0, -4.95]}>
-      <SkyGradient timeSlot={timeSlot} weather={weather} />
+      <SkyGradient color={skyColor} />
       <CloudLayer weather={weather} />
       <SunMoon timeSlot={timeSlot} />
       <AnimatedWater color={weather === "rain" ? "#3a8090" : "#3aa8c0"} position={[0, 0.08, -0.12]} size={[24, 12]} amplitude={0.06} speed={0.55} />
@@ -1082,7 +1034,38 @@ function WindowLandscape({ weather, timeSlot }) {
 }
 
 function ExteriorWrap({ color }) {
-  return null;
+  const bushes = [
+    { x: -3.4, y: 0.45, z: -0.3, r: 0.28 },
+    { x: -3.7, y: 0.38, z: 0.1, r: 0.22 },
+    { x: -4.0, y: 0.32, z: -0.15, r: 0.18 },
+    { x: 3.4, y: 0.44, z: -0.25, r: 0.26 },
+    { x: 3.75, y: 0.36, z: 0.15, r: 0.2 },
+    { x: 4.0, y: 0.3, z: 0.0, r: 0.16 },
+  ];
+
+  const stones = [
+    { x: -3.55, y: 0.06, z: 0.3, s: 0.1 },
+    { x: -3.85, y: 0.05, z: -0.1, s: 0.08 },
+    { x: 3.5, y: 0.06, z: 0.25, s: 0.09 },
+    { x: 3.9, y: 0.05, z: -0.05, s: 0.07 },
+  ];
+
+  return (
+    <group>
+      {bushes.map((b, i) => (
+        <mesh key={`bush-${i}`} position={[b.x, b.y, b.z]}>
+          <sphereGeometry args={[b.r, 14, 12]} />
+          <meshStandardMaterial color={color} roughness={0.95} />
+        </mesh>
+      ))}
+      {stones.map((s, i) => (
+        <mesh key={`stone-${i}`} position={[s.x, s.y, s.z]} rotation={[0.1, i * 1.2, 0.15]}>
+          <dodecahedronGeometry args={[s.s, 0]} />
+          <meshStandardMaterial color="#8a8a88" roughness={0.92} />
+        </mesh>
+      ))}
+    </group>
+  );
 }
 
 function RectTeaTable3D({ activeGesture, tableStyle }) {
@@ -1220,13 +1203,12 @@ function LakesideScene({ mood, weather, perspective, activeGesture, tableStyle, 
       {perspective === "firstPerson" && (
         <>
           <FirstPersonTeaFocus active sceneId="lakeside" />
-          <FirstPersonHands active />
+          <FirstPersonHands />
           <FirstPersonCup />
         </>
       )}
       <RainParticles visible={weather === "rain"} />
       <FloatingMotes color="#f9f4ea" count={140} area={[11, 3.4, 10]} speed={0.08} size={0.05} />
-      <Environment preset="sunset" />
     </>
   );
 }
@@ -1251,13 +1233,12 @@ function CourtyardScene({ mood, weather, perspective, activeGesture, tableStyle,
       {perspective === "firstPerson" && (
         <>
           <FirstPersonTeaFocus active sceneId="courtyard" />
-          <FirstPersonHands active />
+          <FirstPersonHands />
           <FirstPersonCup />
         </>
       )}
       <RainParticles visible={weather === "rain"} area={[11, 7.5, 11]} />
       <FloatingMotes color="#dfe8dd" count={120} area={[9, 4, 9]} speed={0.11} size={0.04} />
-      <Environment preset="city" />
     </>
   );
 }
@@ -1271,10 +1252,9 @@ function TearoomScene({ mood, weather, perspective, activeGesture, tableStyle, o
       <WindowRainSheet visible={weather === "rain"} />
       <RectTeaTable3D activeGesture={activeGesture} tableStyle={tableStyle} />
       <SilhouetteGuests perspective={perspective} sceneId="tearoom" occupancy={occupancy} />
-      {perspective === "firstPerson" && <FirstPersonHands active />}
+      {perspective === "firstPerson" && <FirstPersonHands />}
       <RainParticles visible={weather === "rain"} area={[6.5, 4.6, 3.2]} size={0.026} opacity={0.34} />
       <FloatingMotes color="#f4e2cb" count={180} area={[7.2, 3.2, 4.5]} speed={0.1} size={0.038} />
-      <Environment preset="warehouse" />
     </>
   );
 }
