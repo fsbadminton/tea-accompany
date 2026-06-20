@@ -305,8 +305,8 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
           <SteamParticles position={[0, 0.14, 0]} count={isBrewing ? 40 : 20} spread={0.08} riseSpeed={isBrewing ? 0.14 : 0.08} size={isBrewing ? 0.05 : 0.04} opacity={isBrewing ? 0.28 : 0.15} />
         </group>
 
-        {/* Pour particles */}
-        <TeaPourParticles position={[0.15, 0.58, -0.02]} active={isPouring} count={30} />
+        {/* Pour particles - from gaiwan spout area toward fairness cup */}
+        <TeaPourParticles position={[0.1, 0.65, -0.02]} active={isPouring} count={35} direction={[0.35, -0.6, 0.05]} />
 
         {/* Fairness cup (公道杯) */}
         <mesh position={[0.3, 0.57, 0]}>
@@ -369,20 +369,79 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
   );
 }
 
-function FirstPersonHands() {
+function FirstPersonHands({ activeGesture }) {
   const leftRef = useRef(null);
   const rightRef = useRef(null);
+  const leftTarget = useRef({ x: -1.85, y: -0.08, z: 1.65 });
+  const rightTarget = useRef({ x: 1.82, y: -0.1, z: 1.72 });
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     const t = state.clock.elapsedTime;
+    const lerpFactor = Math.min(delta * 3, 1);
+
+    // Determine target positions based on gesture
+    switch (activeGesture) {
+      case "pour":
+        // Right hand extends forward-right (holding teapot to pour)
+        rightTarget.current.x = 1.82 + 0.3;
+        rightTarget.current.y = -0.1 + 0.1;
+        rightTarget.current.z = 1.72 - 0.2;
+        // Left hand stays natural
+        leftTarget.current.x = -1.85;
+        leftTarget.current.y = -0.08;
+        leftTarget.current.z = 1.65;
+        break;
+      case "distribute":
+        // Right hand extends forward (holding fairness cup to pour)
+        rightTarget.current.x = 1.82;
+        rightTarget.current.y = -0.1 + 0.05;
+        rightTarget.current.z = 1.72 - 0.3;
+        leftTarget.current.x = -1.85;
+        leftTarget.current.y = -0.08;
+        leftTarget.current.z = 1.65;
+        break;
+      case "flipCup":
+        // Both hands extend forward (flipping cups)
+        leftTarget.current.x = -1.85;
+        leftTarget.current.y = -0.08 + 0.05;
+        leftTarget.current.z = 1.65 - 0.2;
+        rightTarget.current.x = 1.82;
+        rightTarget.current.y = -0.1 + 0.05;
+        rightTarget.current.z = 1.72 - 0.2;
+        break;
+      case "smell":
+        // Right hand raises up (lifting cup to smell)
+        rightTarget.current.x = 1.82;
+        rightTarget.current.y = -0.1 + 0.25;
+        rightTarget.current.z = 1.72 - 0.1;
+        leftTarget.current.x = -1.85;
+        leftTarget.current.y = -0.08;
+        leftTarget.current.z = 1.65;
+        break;
+      default:
+        // brew, serve, serveGuest, idle - hands at natural position
+        leftTarget.current.x = -1.85;
+        leftTarget.current.y = -0.08;
+        leftTarget.current.z = 1.65;
+        rightTarget.current.x = 1.82;
+        rightTarget.current.y = -0.1;
+        rightTarget.current.z = 1.72;
+        break;
+    }
+
+    // Smoothly interpolate left hand
     if (leftRef.current) {
-      leftRef.current.position.y = -0.08 + Math.sin(t * 1.4) * 0.03 + 0.02;
-      leftRef.current.position.x = -1.85 + Math.sin(t * 0.7) * 0.02;
+      leftRef.current.position.x += (leftTarget.current.x + Math.sin(t * 0.7) * 0.02 - leftRef.current.position.x) * lerpFactor;
+      leftRef.current.position.y += (leftTarget.current.y + Math.sin(t * 1.4) * 0.03 + 0.02 - leftRef.current.position.y) * lerpFactor;
+      leftRef.current.position.z += (leftTarget.current.z - leftRef.current.position.z) * lerpFactor;
       leftRef.current.rotation.z = 0.1 + Math.sin(t * 0.9) * 0.03;
     }
+
+    // Smoothly interpolate right hand
     if (rightRef.current) {
-      rightRef.current.position.y = -0.1 + Math.cos(t * 1.2) * 0.03 + 0.02;
-      rightRef.current.position.x = 1.82 + Math.cos(t * 0.8) * 0.02;
+      rightRef.current.position.x += (rightTarget.current.x + Math.cos(t * 0.8) * 0.02 - rightRef.current.position.x) * lerpFactor;
+      rightRef.current.position.y += (rightTarget.current.y + Math.cos(t * 1.2) * 0.03 + 0.02 - rightRef.current.position.y) * lerpFactor;
+      rightRef.current.position.z += (rightTarget.current.z - rightRef.current.position.z) * lerpFactor;
       rightRef.current.rotation.z = -0.12 + Math.cos(t * 0.85) * 0.03;
     }
   });
@@ -633,14 +692,14 @@ function SteamParticles({ position = [0, 0.5, 0], count = 40, spread = 0.15, ris
   );
 }
 
-function TeaPourParticles({ position = [0, 0.6, 0], active = false, count = 30 }) {
+function TeaPourParticles({ position = [0, 0.6, 0], active = false, count = 30, direction = [0, -1, 0] }) {
   const pointsRef = useRef(null);
   const posArray = useMemo(() => {
     const values = new Float32Array(count * 3);
     for (let i = 0; i < count; i += 1) {
-      values[i * 3] = (Math.random() - 0.5) * 0.04;
-      values[i * 3 + 1] = -Math.random() * 0.3;
-      values[i * 3 + 2] = (Math.random() - 0.5) * 0.04;
+      values[i * 3] = (Math.random() - 0.5) * 0.08;
+      values[i * 3 + 1] = -Math.random() * 0.25;
+      values[i * 3 + 2] = (Math.random() - 0.5) * 0.08;
     }
     return values;
   }, [count]);
@@ -650,12 +709,13 @@ function TeaPourParticles({ position = [0, 0.6, 0], active = false, count = 30 }
     const geo = pointsRef.current.geometry;
     const pos = geo.attributes.position;
     for (let i = 0; i < count; i += 1) {
-      pos.array[i * 3 + 1] -= delta * 0.6;
-      pos.array[i * 3] += Math.sin(state.clock.elapsedTime * 3 + i) * 0.0008;
-      if (pos.array[i * 3 + 1] < -0.35) {
-        pos.array[i * 3] = (Math.random() - 0.5) * 0.04;
+      pos.array[i * 3 + 1] += direction[1] * delta * 0.7;
+      pos.array[i * 3] += direction[0] * delta * 0.3 + Math.sin(state.clock.elapsedTime * 3 + i) * 0.001;
+      pos.array[i * 3 + 2] += direction[2] * delta * 0.3;
+      if (pos.array[i * 3 + 1] < -0.3) {
+        pos.array[i * 3] = (Math.random() - 0.5) * 0.08;
         pos.array[i * 3 + 1] = 0;
-        pos.array[i * 3 + 2] = (Math.random() - 0.5) * 0.04;
+        pos.array[i * 3 + 2] = (Math.random() - 0.5) * 0.08;
       }
     }
     pos.needsUpdate = true;
@@ -673,7 +733,7 @@ function TeaPourParticles({ position = [0, 0.6, 0], active = false, count = 30 }
           itemSize={3}
         />
       </bufferGeometry>
-      <pointsMaterial color="#8a6a30" size={0.018} transparent opacity={0.5} depthWrite={false} />
+      <pointsMaterial color="#8a6a30" size={0.04} transparent opacity={0.8} depthWrite={false} />
     </points>
   );
 }
@@ -1702,19 +1762,26 @@ function TeaSetOnTray({ activeGesture, tableStyle }) {
           <tubeGeometry args={[spoutCurve, 20, 0.038, 10, false]} />
           <meshStandardMaterial color="#5a4a3a" roughness={0.38} />
         </mesh>
-        <TeaPourParticles position={[0, 0.16, -0.08]} active={isPouring} count={35} />
+        <TeaPourParticles position={[-0.18, 0.14, -0.08]} active={isPouring} count={35} direction={[-0.4, -0.6, 0.02]} />
         <SteamParticles position={[0, 0.28, 0]} count={isBrewing ? 55 : 30} spread={0.1} riseSpeed={isBrewing ? 0.16 : 0.1} size={isBrewing ? 0.06 : 0.05} opacity={isBrewing ? 0.3 : 0.18} />
       </group>
 
       {/* Fairness cup (公道杯) - separate ref for tilt animation */}
       <group ref={fairnessCupRef} position={[-0.05, 0.14, -0.06]}>
+        {/* Cup body - wider top, narrower bottom */}
         <mesh castShadow>
-          <cylinderGeometry args={[0.16, 0.2, 0.36, 24]} />
-          <meshPhysicalMaterial color="#f8f2ea" roughness={0.18} transmission={0.18} transparent opacity={0.55} />
+          <cylinderGeometry args={[0.14, 0.08, 0.28, 24]} />
+          <meshStandardMaterial color="#f8f2ea" roughness={0.18} />
         </mesh>
-        <mesh position={[0.21, 0.02, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <torusGeometry args={[0.12, 0.018, 10, 22]} />
-          <meshStandardMaterial color="#f0e8dc" roughness={0.24} />
+        {/* Cup rim - thin torus at the top */}
+        <mesh position={[0, 0.14, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.14, 0.012, 10, 24]} />
+          <meshStandardMaterial color="#f0e8dc" roughness={0.15} />
+        </mesh>
+        {/* Spout - small protrusion on one side */}
+        <mesh position={[0.15, 0.12, 0]} rotation={[0, 0, -0.3]}>
+          <sphereGeometry args={[0.03, 10, 8]} />
+          <meshStandardMaterial color="#f8f2ea" roughness={0.18} />
         </mesh>
         <SteamParticles position={[0, 0.22, 0]} count={isBrewing ? 38 : 20} spread={0.08} riseSpeed={isBrewing ? 0.13 : 0.08} size={isBrewing ? 0.05 : 0.04} opacity={isBrewing ? 0.26 : 0.14} />
         {/* Distribute particles */}
@@ -1727,9 +1794,12 @@ function TeaSetOnTray({ activeGesture, tableStyle }) {
           key={index}
           ref={cupRefsAll.current[index]}
           position={position}
-          onClick={(e) => { e.stopPropagation(); handleCupClick(index); }}
         >
-          <mesh castShadow rotation={[Math.PI, 0, 0]}>
+          <mesh
+            castShadow
+            rotation={[Math.PI, 0, 0]}
+            onClick={(e) => { e.stopPropagation(); handleCupClick(index); }}
+          >
             <cylinderGeometry args={[0.105, 0.13, 0.14, 24]} />
             <meshStandardMaterial color="#f8f2ea" roughness={0.2} />
           </mesh>
@@ -1744,6 +1814,7 @@ function TeaSetOnTray({ activeGesture, tableStyle }) {
             <meshStandardMaterial color="#8a6a30" transparent opacity={0} roughness={0.15} />
           </mesh>
           <SteamParticles position={[0, 0.1, 0]} count={12} spread={0.05} riseSpeed={0.06} size={0.03} opacity={0.1} />
+          <GestureGlowRing active={activeGesture === "distribute" && !flippedState.current[index] && !filledState.current[index]} position={[0, 0.02, 0]} />
           {index === 0 && (
             <>
               <GestureGlowRing active={activeGesture === "serve" || activeGesture === "smell" || activeGesture === "serveGuest"} position={[0, 0.02, 0]} />
@@ -1805,7 +1876,7 @@ function LakesideScene({ mood, weather, perspective, activeGesture, tableStyle, 
       {perspective === "firstPerson" && (
         <>
           <FirstPersonTeaFocus active sceneId="lakeside" />
-          <FirstPersonHands />
+          <FirstPersonHands activeGesture={activeGesture} />
           <FirstPersonCup />
         </>
       )}
@@ -1844,7 +1915,7 @@ function CourtyardScene({ mood, weather, perspective, activeGesture, tableStyle,
       {perspective === "firstPerson" && (
         <>
           <FirstPersonTeaFocus active sceneId="courtyard" />
-          <FirstPersonHands />
+          <FirstPersonHands activeGesture={activeGesture} />
           <FirstPersonCup />
         </>
       )}
@@ -1863,7 +1934,7 @@ function TearoomScene({ mood, weather, perspective, activeGesture, tableStyle, o
       <WindowRainSheet visible={weather === "rain"} />
       <RectTeaTable3D activeGesture={activeGesture} tableStyle={tableStyle} />
       <SilhouetteGuests perspective={perspective} sceneId="tearoom" occupancy={occupancy} />
-      {perspective === "firstPerson" && <FirstPersonHands />}
+      {perspective === "firstPerson" && <FirstPersonHands activeGesture={activeGesture} />}
       <RainParticles visible={weather === "rain"} area={[6.5, 4.6, 3.2]} size={0.026} opacity={0.34} />
       <FloatingMotes color="#f4e2cb" count={180} area={[7.2, 3.2, 4.5]} speed={0.1} size={0.038} />
     </>
