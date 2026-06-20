@@ -38,6 +38,8 @@ export const CONTROL_OPTIONS = {
   ],
   gestures: [
     { value: "pour", label: "倒茶" },
+    { value: "flipCup", label: "翻杯" },
+    { value: "distribute", label: "分茶" },
     { value: "serve", label: "盛茶杯" },
     { value: "brew", label: "候汤" },
     { value: "smell", label: "闻香" },
