@@ -41,6 +41,94 @@ function CameraRig({ perspective, sceneId }) {
   return null;
 }
 
+function TeaFilter({ position = [0, 0, 0] }) {
+  return (
+    <group position={position}>
+      {/* Funnel top - inverted cone */}
+      <mesh position={[0, 0.06, 0]} rotation={[Math.PI, 0, 0]}>
+        <coneGeometry args={[0.05, 0.08, 16]} />
+        <meshStandardMaterial color="#b8b8b8" roughness={0.3} metalness={0.4} />
+      </mesh>
+      {/* Small cylinder base */}
+      <mesh position={[0, -0.02, 0]}>
+        <cylinderGeometry args={[0.015, 0.02, 0.04, 12]} />
+        <meshStandardMaterial color="#b8b8b8" roughness={0.3} metalness={0.4} />
+      </mesh>
+      {/* Small saucer plate */}
+      <mesh position={[0.08, -0.03, 0]}>
+        <cylinderGeometry args={[0.045, 0.05, 0.012, 16]} />
+        <meshStandardMaterial color="#b0b0b0" roughness={0.28} metalness={0.35} />
+      </mesh>
+    </group>
+  );
+}
+
+function WasteBowl({ position = [0, 0, 0] }) {
+  return (
+    <group position={position}>
+      {/* Bowl body */}
+      <mesh position={[0, 0.04, 0]}>
+        <cylinderGeometry args={[0.09, 0.055, 0.08, 20]} />
+        <meshStandardMaterial color="#3a5a58" roughness={0.4} />
+      </mesh>
+      {/* Inner water surface */}
+      <mesh position={[0, 0.07, 0]}>
+        <cylinderGeometry args={[0.078, 0.078, 0.005, 18]} />
+        <meshStandardMaterial color="#2a4a48" roughness={0.2} metalness={0.1} />
+      </mesh>
+    </group>
+  );
+}
+
+function TeaCloth({ position = [0, 0, 0] }) {
+  return (
+    <group position={position}>
+      {/* Main cloth body */}
+      <mesh position={[0, 0.012, 0]}>
+        <boxGeometry args={[0.14, 0.015, 0.1]} />
+        <meshStandardMaterial color="#e8e0d0" roughness={0.9} />
+      </mesh>
+      {/* Fold wrinkle 1 */}
+      <mesh position={[0.03, 0.022, 0.01]} rotation={[0, 0.2, 0.05]}>
+        <boxGeometry args={[0.08, 0.01, 0.06]} />
+        <meshStandardMaterial color="#e4dccc" roughness={0.92} />
+      </mesh>
+      {/* Fold wrinkle 2 */}
+      <mesh position={[-0.02, 0.02, -0.015]} rotation={[0.03, -0.15, -0.03]}>
+        <boxGeometry args={[0.06, 0.008, 0.045]} />
+        <meshStandardMaterial color="#e0d8c8" roughness={0.92} />
+      </mesh>
+    </group>
+  );
+}
+
+function TeaPet({ position = [0, 0, 0] }) {
+  return (
+    <group position={position}>
+      {/* Body - flattened sphere */}
+      <mesh position={[0, 0.025, 0]} scale={[1.1, 0.65, 0.95]}>
+        <sphereGeometry args={[0.04, 14, 12]} />
+        <meshStandardMaterial color="#a07848" roughness={0.7} />
+      </mesh>
+      {/* Head */}
+      <mesh position={[0, 0.045, 0.03]} scale={[0.85, 0.75, 0.8]}>
+        <sphereGeometry args={[0.03, 12, 10]} />
+        <meshStandardMaterial color="#a07848" roughness={0.7} />
+      </mesh>
+      {/* Left eye */}
+      <mesh position={[-0.015, 0.055, 0.045]}>
+        <sphereGeometry args={[0.008, 8, 8]} />
+        <meshStandardMaterial color="#2a1a0a" roughness={0.5} />
+      </mesh>
+      {/* Right eye */}
+      <mesh position={[0.015, 0.055, 0.045]}>
+        <sphereGeometry args={[0.008, 8, 8]} />
+        <meshStandardMaterial color="#2a1a0a" roughness={0.5} />
+      </mesh>
+    </group>
+  );
+}
+
 function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c89868", activeGesture, tableStyle }) {
   const gaiwanRef = useRef(null);
   const cupRef = useRef(null);
@@ -156,6 +244,12 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
             <meshStandardMaterial color="#f8f2ea" roughness={0.18} />
           </mesh>
         )}
+
+        {/* Additional tea utensils */}
+        <TeaFilter position={[0.18, 0.55, -0.02]} />
+        <WasteBowl position={[-0.42, 0.52, -0.28]} />
+        <TeaCloth position={[0.42, 0.51, 0.28]} />
+        <TeaPet position={[-0.45, 0.53, 0.25]} />
       </group>
     </Float>
   );
@@ -1412,6 +1506,12 @@ function TeaSetOnTray({ activeGesture, tableStyle }) {
           )}
         </group>
       ))}
+
+      {/* Additional tea utensils */}
+      <TeaFilter position={[0.45, 0.12, -0.08]} />
+      <WasteBowl position={[-1.0, 0.06, -0.38]} />
+      <TeaCloth position={[0.85, 0.05, 0.35]} />
+      <TeaPet position={[-0.9, 0.08, 0.35]} />
     </group>
   );
 }
