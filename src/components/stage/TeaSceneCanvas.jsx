@@ -141,6 +141,7 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
 
   // Cup flip and distribute state
   const flipProgress = useRef(0);
+  const flippedPersisted = useRef(false);
   const cup0Flipped = useRef(false);
   const cup0Filled = useRef(false);
   const cup0LiquidLevel = useRef(null);
@@ -154,94 +155,104 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
   useFrame((state, delta) => {
     if (!gaiwanRef.current) return;
 
-    // Pour/brew animation
-    if (isPouring) {
-      pourRef.current = Math.min(pourRef.current + delta * 0.9, 1);
-    } else {
-      pourRef.current = Math.max(pourRef.current - delta * 0.8, 0);
-    }
+    try {
+      // Pour/brew animation
+      if (isPouring) {
+        pourRef.current = Math.min(pourRef.current + delta * 0.9, 1);
+      } else {
+        pourRef.current = Math.max(pourRef.current - delta * 0.8, 0);
+      }
 
-    // Smell animation
-    if (activeGesture === "smell") {
-      smellRef.current = Math.min(smellRef.current + delta * 0.7, 1);
-    } else {
-      smellRef.current = Math.max(smellRef.current - delta * 0.6, 0);
-    }
+      // Smell animation
+      if (activeGesture === "smell") {
+        smellRef.current = Math.min(smellRef.current + delta * 0.7, 1);
+      } else {
+        smellRef.current = Math.max(smellRef.current - delta * 0.6, 0);
+      }
 
-    // ServeGuest animation
-    if (activeGesture === "serveGuest") {
-      serveGuestRef.current = Math.min(serveGuestRef.current + delta * 0.6, 1);
-    } else {
-      serveGuestRef.current = Math.max(serveGuestRef.current - delta * 0.5, 0);
-    }
+      // ServeGuest animation
+      if (activeGesture === "serveGuest") {
+        serveGuestRef.current = Math.min(serveGuestRef.current + delta * 0.6, 1);
+      } else {
+        serveGuestRef.current = Math.max(serveGuestRef.current - delta * 0.5, 0);
+      }
 
-    // Serve animation
-    if (activeGesture === "serve") {
-      serveRef.current = Math.min(serveRef.current + delta * 0.7, 1);
-    } else {
-      serveRef.current = Math.max(serveRef.current - delta * 0.6, 0);
-    }
+      // Serve animation
+      if (activeGesture === "serve") {
+        serveRef.current = Math.min(serveRef.current + delta * 0.7, 1);
+      } else {
+        serveRef.current = Math.max(serveRef.current - delta * 0.6, 0);
+      }
 
-    // Gaiwan tilt for pour/brew
-    if (isPouring || isBrewing) {
-      gaiwanRef.current.rotation.z = Math.sin(pourRef.current * Math.PI) * 0.28 * (isBrewing ? 0.2 : 1);
-      gaiwanRef.current.rotation.x = isBrewing ? Math.cos(pourRef.current * Math.PI * 0.7) * 0.03 : 0;
-    } else {
-      gaiwanRef.current.rotation.z *= 0.94;
-      gaiwanRef.current.rotation.x *= 0.94;
-      if (Math.abs(gaiwanRef.current.rotation.z) < 0.005) gaiwanRef.current.rotation.z = 0;
-      if (Math.abs(gaiwanRef.current.rotation.x) < 0.005) gaiwanRef.current.rotation.x = 0;
-    }
+      // Gaiwan tilt for pour/brew
+      if (isPouring || isBrewing) {
+        gaiwanRef.current.rotation.z = Math.sin(pourRef.current * Math.PI) * 0.28 * (isBrewing ? 0.2 : 1);
+        gaiwanRef.current.rotation.x = isBrewing ? Math.cos(pourRef.current * Math.PI * 0.7) * 0.03 : 0;
+      } else {
+        gaiwanRef.current.rotation.z *= 0.94;
+        gaiwanRef.current.rotation.x *= 0.94;
+        if (Math.abs(gaiwanRef.current.rotation.z) < 0.005) gaiwanRef.current.rotation.z = 0;
+        if (Math.abs(gaiwanRef.current.rotation.x) < 0.005) gaiwanRef.current.rotation.x = 0;
+      }
 
-    // Cup flip animation
-    if (activeGesture === "flipCup") {
-      flipProgress.current = Math.min(flipProgress.current + delta * 0.8, 1);
-    } else {
-      flipProgress.current = Math.max(flipProgress.current - delta * 0.65, 0);
-    }
+      // Cup flip animation — toggle on flipCup, persist state when gesture changes
+      if (activeGesture === "flipCup") {
+        if (!flippedPersisted.current) {
+          flipProgress.current = Math.min(flipProgress.current + delta * 0.8, 1);
+          if (flipProgress.current >= 0.98) flippedPersisted.current = true;
+        } else {
+          flipProgress.current = Math.max(flipProgress.current - delta * 0.8, 0);
+          if (flipProgress.current <= 0.02) flippedPersisted.current = false;
+        }
+      }
 
-    // Apply flip to cup0
-    if (cupRef.current) {
+      // Apply flip to cups — easeFlip computed once, shared across both cups
       const easeFlip = 1 - Math.pow(1 - flipProgress.current, 3);
-      cupRef.current.rotation.x = Math.PI * (1 - easeFlip);
 
-      if (flipProgress.current >= 0.98 && !cup0Flipped.current) {
-        cup0Flipped.current = true;
-      } else if (flipProgress.current < 0.02 && cup0Flipped.current) {
-        cup0Flipped.current = false;
+      // Apply flip to cup0
+      if (cupRef.current) {
+        cupRef.current.rotation.x = Math.PI * (1 - easeFlip);
+
+        if (flipProgress.current >= 0.98 && !cup0Flipped.current) {
+          cup0Flipped.current = true;
+        } else if (flipProgress.current < 0.02 && cup0Flipped.current) {
+          cup0Flipped.current = false;
+        }
       }
-    }
 
-    // Apply flip to cup1
-    if (cup1Ref.current) {
-      cup1Ref.current.rotation.x = Math.PI * (1 - easeFlip);
+      // Apply flip to cup1
+      if (cup1Ref.current) {
+        cup1Ref.current.rotation.x = Math.PI * (1 - easeFlip);
 
-      if (flipProgress.current >= 0.98 && !cup1Flipped.current) {
-        cup1Flipped.current = true;
-      } else if (flipProgress.current < 0.02 && cup1Flipped.current) {
-        cup1Flipped.current = false;
+        if (flipProgress.current >= 0.98 && !cup1Flipped.current) {
+          cup1Flipped.current = true;
+        } else if (flipProgress.current < 0.02 && cup1Flipped.current) {
+          cup1Flipped.current = false;
+        }
       }
-    }
 
-    // Cup0 smell/serveGuest/serve position animation
-    if (cupRef.current) {
-      const easeSmell = 1 - Math.pow(1 - smellRef.current, 3);
-      const easeServeGuest = 1 - Math.pow(1 - serveGuestRef.current, 3);
-      const easeServe = 1 - Math.pow(1 - serveRef.current, 3);
-      cupRef.current.position.y = 0.54 + easeSmell * 0.3 + easeServeGuest * 0.05;
-      cupRef.current.position.z = 0.08 + easeServe * 0.15;
-      const floatVal = serveGuestRef.current * Math.sin(state.clock.elapsedTime * 1.5) * 0.02;
-      cupRef.current.position.y += easeServeGuest * 0.4 + floatVal;
-    }
+      // Cup0 smell/serveGuest/serve position animation
+      if (cupRef.current) {
+        const easeSmell = 1 - Math.pow(1 - smellRef.current, 3);
+        const easeServeGuest = 1 - Math.pow(1 - serveGuestRef.current, 3);
+        const easeServe = 1 - Math.pow(1 - serveRef.current, 3);
+        cupRef.current.position.y = 0.54 + easeSmell * 0.3 + easeServeGuest * 0.05;
+        cupRef.current.position.z = 0.08 + easeServe * 0.15;
+        const floatVal = serveGuestRef.current * Math.sin(state.clock.elapsedTime * 1.5) * 0.02;
+        cupRef.current.position.y += easeServeGuest * 0.4 + floatVal;
+      }
 
-    // Liquid level opacity animation
-    if (cup0LiquidLevel.current) {
-      const targetOpacity = cup0Flipped.current && cup0Filled.current ? 0.85 : 0;
-      cup0LiquidLevel.current.material.opacity += (targetOpacity - cup0LiquidLevel.current.material.opacity) * delta * 3;
-    }
-    if (cup1LiquidLevel.current) {
-      const targetOpacity = cup1Flipped.current && cup1Filled.current ? 0.85 : 0;
-      cup1LiquidLevel.current.material.opacity += (targetOpacity - cup1LiquidLevel.current.material.opacity) * delta * 3;
+      // Liquid level opacity animation
+      if (cup0LiquidLevel.current) {
+        const targetOpacity = cup0Flipped.current && cup0Filled.current ? 0.85 : 0;
+        cup0LiquidLevel.current.material.opacity += (targetOpacity - cup0LiquidLevel.current.material.opacity) * delta * 3;
+      }
+      if (cup1LiquidLevel.current) {
+        const targetOpacity = cup1Flipped.current && cup1Filled.current ? 0.85 : 0;
+        cup1LiquidLevel.current.material.opacity += (targetOpacity - cup1LiquidLevel.current.material.opacity) * delta * 3;
+      }
+    } catch (e) {
+      // Prevent animation errors from crashing the render loop
     }
 
     // Distribute animation
@@ -303,10 +314,12 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
             <meshStandardMaterial color="#f8f2ea" roughness={0.2} />
           </mesh>
           <SteamParticles position={[0, 0.14, 0]} count={isBrewing ? 40 : 20} spread={0.08} riseSpeed={isBrewing ? 0.14 : 0.08} size={isBrewing ? 0.05 : 0.04} opacity={isBrewing ? 0.28 : 0.15} />
+          <WarmWaterParticles active={activeGesture === 'brew' || activeGesture === 'rinseTea'} position={[0, 0.14, 0]} />
+          <LeafDropParticles active={activeGesture === 'appreciateTea'} position={[0, 0.16, 0]} />
         </group>
 
         {/* Pour particles - from gaiwan spout area toward fairness cup */}
-        <TeaPourParticles position={[0.1, 0.65, -0.02]} active={isPouring} count={35} direction={[0.35, -0.6, 0.05]} />
+        <TeaPourParticles position={[0.1, 0.65, -0.02]} active={isPouring} count={35} direction={[0.55, 0.15, 0.05]} />
 
         {/* Fairness cup (公道杯) */}
         <mesh position={[0.3, 0.57, 0]}>
@@ -324,6 +337,11 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
           <mesh rotation={[Math.PI, 0, 0]}>
             <cylinderGeometry args={[0.07, 0.08, 0.09, 20]} />
             <meshStandardMaterial color="#f8f2ea" roughness={0.18} />
+          </mesh>
+          {/* Cup rim — visible color band so flip is noticeable */}
+          <mesh position={[0, -0.04, 0]} rotation={[Math.PI, 0, 0]}>
+            <torusGeometry args={[0.07, 0.006, 8, 20]} />
+            <meshStandardMaterial color="#c89868" roughness={0.3} />
           </mesh>
           <mesh position={[0, 0.04, 0]} rotation={[Math.PI, 0, 0]}>
             <cylinderGeometry args={[0.06, 0.065, 0.008, 18]} />
@@ -347,6 +365,11 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
             <mesh rotation={[Math.PI, 0, 0]}>
               <cylinderGeometry args={[0.07, 0.08, 0.09, 20]} />
               <meshStandardMaterial color="#f8f2ea" roughness={0.18} />
+            </mesh>
+            {/* Cup rim — visible color band so flip is noticeable */}
+            <mesh position={[0, -0.04, 0]} rotation={[Math.PI, 0, 0]}>
+              <torusGeometry args={[0.07, 0.006, 8, 20]} />
+              <meshStandardMaterial color="#c89868" roughness={0.3} />
             </mesh>
             <mesh position={[0, 0.04, 0]} rotation={[Math.PI, 0, 0]}>
               <cylinderGeometry args={[0.06, 0.065, 0.008, 18]} />
@@ -694,28 +717,48 @@ function SteamParticles({ position = [0, 0.5, 0], count = 40, spread = 0.15, ris
 
 function TeaPourParticles({ position = [0, 0.6, 0], active = false, count = 30, direction = [0, -1, 0] }) {
   const pointsRef = useRef(null);
-  const posArray = useMemo(() => {
-    const values = new Float32Array(count * 3);
-    for (let i = 0; i < count; i += 1) {
-      values[i * 3] = (Math.random() - 0.5) * 0.08;
-      values[i * 3 + 1] = -Math.random() * 0.25;
-      values[i * 3 + 2] = (Math.random() - 0.5) * 0.08;
+  const posArray = useMemo(() => new Float32Array(count * 3), [count]);
+  const velArray = useMemo(() => {
+    const v = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      // Stagger start positions along the arc
+      const t = Math.random();
+      posArray[i * 3]     = direction[0] * t * 0.3;
+      posArray[i * 3 + 1] = 0.08 * t * (1 - t) * 4;
+      posArray[i * 3 + 2] = direction[2] * t * 0.3;
+      v[i * 3]     = direction[0] * 1.5 + (Math.random() - 0.5) * 0.01;
+      v[i * 3 + 1] = direction[1] * 1.5;
+      v[i * 3 + 2] = direction[2] * 1.5 + (Math.random() - 0.5) * 0.01;
     }
-    return values;
-  }, [count]);
+    return v;
+  }, [count, direction[0], direction[1], direction[2]]);
+
+  const gravity = -1.0;
 
   useFrame((state, delta) => {
     if (!pointsRef.current || !active) return;
-    const geo = pointsRef.current.geometry;
-    const pos = geo.attributes.position;
-    for (let i = 0; i < count; i += 1) {
-      pos.array[i * 3 + 1] += direction[1] * delta * 0.7;
-      pos.array[i * 3] += direction[0] * delta * 0.3 + Math.sin(state.clock.elapsedTime * 3 + i) * 0.001;
-      pos.array[i * 3 + 2] += direction[2] * delta * 0.3;
-      if (pos.array[i * 3 + 1] < -0.3) {
-        pos.array[i * 3] = (Math.random() - 0.5) * 0.08;
-        pos.array[i * 3 + 1] = 0;
-        pos.array[i * 3 + 2] = (Math.random() - 0.5) * 0.08;
+    const pos = pointsRef.current.geometry.attributes.position;
+    const dt = Math.min(delta, 0.05);
+    for (let i = 0; i < count; i++) {
+      const b = i * 3;
+      // Gravity
+      velArray[b + 1] += gravity * dt;
+      // Integrate position
+      posArray[b]     += velArray[b] * dt;
+      posArray[b + 1] += velArray[b + 1] * dt;
+      posArray[b + 2] += velArray[b + 2] * dt;
+      // Write to GPU buffer
+      pos.array[b]     = posArray[b];
+      pos.array[b + 1] = posArray[b + 1];
+      pos.array[b + 2] = posArray[b + 2];
+      // Reset when reached target height or overshot horizontally
+      if (posArray[b + 1] < -0.15 || Math.abs(posArray[b]) > Math.abs(direction[0]) * 1.2) {
+        posArray[b]     = (Math.random() - 0.5) * 0.015;
+        posArray[b + 1] = 0;
+        posArray[b + 2] = (Math.random() - 0.5) * 0.015;
+        velArray[b]     = direction[0] * 1.5 + (Math.random() - 0.5) * 0.01;
+        velArray[b + 1] = direction[1] * 1.5;
+        velArray[b + 2] = direction[2] * 1.5 + (Math.random() - 0.5) * 0.01;
       }
     }
     pos.needsUpdate = true;
@@ -733,7 +776,94 @@ function TeaPourParticles({ position = [0, 0.6, 0], active = false, count = 30, 
           itemSize={3}
         />
       </bufferGeometry>
-      <pointsMaterial color="#8a6a30" size={0.04} transparent opacity={0.8} depthWrite={false} />
+      <pointsMaterial color="#8a6a30" size={0.035} transparent opacity={0.85} depthWrite={false} />
+    </points>
+  );
+}
+
+function WarmWaterParticles({ active, position = [0, 0, 0], count = 40 }) {
+  const ref = useRef(null);
+  const positions = useMemo(() => {
+    const values = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      values[i * 3] = (Math.random() - 0.5) * 0.06;
+      values[i * 3 + 1] = Math.random() * 0.15;
+      values[i * 3 + 2] = (Math.random() - 0.5) * 0.06;
+    }
+    return values;
+  }, [count]);
+
+  useFrame(() => {
+    if (!ref.current || !active) return;
+    const posArr = ref.current.geometry.attributes.position.array;
+    for (let i = 0; i < count; i++) {
+      posArr[i * 3 + 1] += 0.004;
+      if (posArr[i * 3 + 1] > 0.2) {
+        posArr[i * 3] = (Math.random() - 0.5) * 0.06;
+        posArr[i * 3 + 1] = Math.random() * 0.02;
+        posArr[i * 3 + 2] = (Math.random() - 0.5) * 0.06;
+      }
+    }
+    ref.current.geometry.attributes.position.needsUpdate = true;
+  });
+
+  if (!active) return null;
+
+  return (
+    <points ref={ref} position={position}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          count={count}
+          array={positions}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <pointsMaterial color="#f0e8d8" size={0.012} transparent opacity={0.45} />
+    </points>
+  );
+}
+
+function LeafDropParticles({ active, position = [0, 0, 0], count = 15 }) {
+  const ref = useRef(null);
+  const positions = useMemo(() => {
+    const values = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      values[i * 3] = (Math.random() - 0.5) * 0.04;
+      values[i * 3 + 1] = 0.15 + Math.random() * 0.1;
+      values[i * 3 + 2] = (Math.random() - 0.5) * 0.04;
+    }
+    return values;
+  }, [count]);
+
+  useFrame(() => {
+    if (!ref.current || !active) return;
+    const posArr = ref.current.geometry.attributes.position.array;
+    for (let i = 0; i < count; i++) {
+      posArr[i * 3 + 1] -= 0.003;
+      posArr[i * 3] += (Math.random() - 0.5) * 0.001;
+      if (posArr[i * 3 + 1] < 0) {
+        posArr[i * 3] = (Math.random() - 0.5) * 0.04;
+        posArr[i * 3 + 1] = 0.15 + Math.random() * 0.1;
+        posArr[i * 3 + 2] = (Math.random() - 0.5) * 0.04;
+      }
+    }
+    ref.current.geometry.attributes.position.needsUpdate = true;
+  });
+
+  if (!active) return null;
+
+  return (
+    <points ref={ref} position={position}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          count={count}
+          array={positions}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <pointsMaterial color="#5a4a32" size={0.008} transparent opacity={0.6} />
     </points>
   );
 }
@@ -1041,7 +1171,7 @@ function TearoomShell() {
 }
 
 function WindowFrame3D() {
-  const wood = "#2b1a11";
+  const wood = "#c8a882";
   const frameParts = [
     { position: [0, 3.36, -2.72], size: [6.05, 0.32, 0.38] },
     { position: [0, 0.36, -2.72], size: [6.05, 0.36, 0.42] },
@@ -1061,11 +1191,11 @@ function WindowFrame3D() {
       <OpenWindowLeaf side="right" />
       <mesh position={[0, 0.18, -2.2]} castShadow receiveShadow>
         <boxGeometry args={[6.6, 0.25, 1.08]} />
-        <meshStandardMaterial color="#3f281a" roughness={0.82} />
+        <meshStandardMaterial color="#d8cbb4" roughness={0.82} />
       </mesh>
       <mesh position={[0, 0.38, -2.62]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[5.65, 0.9]} />
-        <meshStandardMaterial color="#704a2f" roughness={0.9} />
+        <meshStandardMaterial color="#b89870" roughness={0.9} />
       </mesh>
     </group>
   );
@@ -1077,7 +1207,7 @@ function OpenWindowLeaf({ side }) {
   const leafHeight = 2.48;
   const hingeX = sign * 2.95;
   const angle = sign * -0.72;
-  const rail = "#2b1a11";
+  const rail = "#c8a882";
 
   return (
     <group position={[hingeX, 1.88, -2.86]} rotation={[0, angle, 0]}>
@@ -1616,9 +1746,13 @@ function TeaSetOnTray({ activeGesture, tableStyle }) {
   const serveGuestRef = useRef(0);
   const pourRef = useRef(0);
   const serveRef = useRef(0);
+  const fairnessCupLiquidRef = useRef(null);
+  const fairnessCupSurfaceRef = useRef(null);
+  const pourFillRef = useRef(0);
 
   // Cup flip state
   const flipProgress = useRef(0);
+  const flippedPersisted = useRef(false); // persists flip after gesture changes
   const cupRefsAll = useRef([cup0Ref, cup1Ref, cup2Ref, cup3Ref]);
   const flippedState = useRef([false, false, false, false]);
   const filledState = useRef([false, false, false, false]);
@@ -1629,101 +1763,135 @@ function TeaSetOnTray({ activeGesture, tableStyle }) {
   const distributeProgress = useRef(0);
 
   useFrame((state, delta) => {
-    if (teapotGroupRef.current) {
-      if (isPouring) {
-        pourRef.current = Math.min(pourRef.current + delta * 0.9, 1);
-      } else {
-        pourRef.current = Math.max(pourRef.current - delta * 0.8, 0);
-      }
-      if (isBrewing) {
-        teapotGroupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 1.8) * 0.06;
-        teapotGroupRef.current.rotation.x = Math.cos(state.clock.elapsedTime * 1.26) * 0.035;
-      } else if (pourRef.current > 0) {
-        teapotGroupRef.current.rotation.z = Math.sin(pourRef.current * Math.PI) * 0.32;
-      } else {
-        teapotGroupRef.current.rotation.z *= 0.94;
-        teapotGroupRef.current.rotation.x *= 0.94;
-        if (Math.abs(teapotGroupRef.current.rotation.z) < 0.005) teapotGroupRef.current.rotation.z = 0;
-        if (Math.abs(teapotGroupRef.current.rotation.x) < 0.005) teapotGroupRef.current.rotation.x = 0;
-      }
-    }
-
-    if (activeGesture === "smell") {
-      smellRef.current = Math.min(smellRef.current + delta * 0.7, 1);
-    } else {
-      smellRef.current = Math.max(smellRef.current - delta * 0.6, 0);
-    }
-
-    if (activeGesture === "serveGuest") {
-      serveGuestRef.current = Math.min(serveGuestRef.current + delta * 0.6, 1);
-    } else {
-      serveGuestRef.current = Math.max(serveGuestRef.current - delta * 0.5, 0);
-    }
-
-    if (activeGesture === "serve") {
-      serveRef.current = Math.min(serveRef.current + delta * 0.7, 1);
-    } else {
-      serveRef.current = Math.max(serveRef.current - delta * 0.6, 0);
-    }
-
-    if (cup0Ref.current) {
-      const easeSmell = 1 - Math.pow(1 - smellRef.current, 3);
-      const easeServeGuest = 1 - Math.pow(1 - serveGuestRef.current, 3);
-      const easeServe = 1 - Math.pow(1 - serveRef.current, 3);
-      cup0Ref.current.position.y = 0.07 + easeSmell * 0.3;
-      cup0Ref.current.position.z = 0.2 + easeServe * 0.15;
-      const floatVal = serveGuestRef.current * Math.sin(state.clock.elapsedTime * 1.5) * 0.02;
-      cup0Ref.current.position.y += easeServeGuest * 0.45 + floatVal;
-      cup0Ref.current.position.z += easeServeGuest * 0.4;
-    }
-
-    // Cup flip animation
-    if (activeGesture === "flipCup") {
-      flipProgress.current = Math.min(flipProgress.current + delta * 0.8, 1);
-    } else {
-      flipProgress.current = Math.max(flipProgress.current - delta * 0.65, 0);
-    }
-
-    // Apply flip rotation to all cups
-    const easeFlip = 1 - Math.pow(1 - flipProgress.current, 3);
-    const cupCount = tableStyle === "full" ? 4 : 2;
-    for (let i = 0; i < cupCount; i++) {
-      const ref = cupRefsAll.current[i];
-      if (ref.current) {
-        ref.current.rotation.x = Math.PI * (1 - easeFlip);
-      }
-      if (flipProgress.current >= 0.98 && !flippedState.current[i]) {
-        flippedState.current[i] = true;
-      } else if (flipProgress.current < 0.02 && flippedState.current[i]) {
-        flippedState.current[i] = false;
-      }
-    }
-
-    // Liquid level opacity animation
-    for (let i = 0; i < cupCount; i++) {
-      const liquidMesh = liquidRefs.current[i];
-      if (liquidMesh) {
-        const targetOpacity = flippedState.current[i] && filledState.current[i] ? 0.85 : 0;
-        liquidMesh.material.opacity += (targetOpacity - liquidMesh.material.opacity) * delta * 3;
-      }
-    }
-
-    // Fairness cup tilt for distribute
-    if (fairnessCupRef.current) {
-      if (distributeTarget.current >= 0) {
-        distributeProgress.current = Math.min(distributeProgress.current + delta * 0.55, 1);
-        const tiltEase = 1 - Math.pow(1 - distributeProgress.current, 2);
-        fairnessCupRef.current.rotation.z = tiltEase * 0.28;
-
-        if (distributeProgress.current >= 1) {
-          filledState.current[distributeTarget.current] = true;
-          distributeTarget.current = -1;
-          distributeProgress.current = 0;
+    try {
+      if (teapotGroupRef.current) {
+        if (isPouring) {
+          pourRef.current = Math.min(pourRef.current + delta * 0.7, 1);
+        } else {
+          pourRef.current = Math.max(pourRef.current - delta * 0.6, 0);
         }
-      } else if (fairnessCupRef.current.rotation.z > 0.001) {
-        fairnessCupRef.current.rotation.z *= 0.92;
-        if (fairnessCupRef.current.rotation.z < 0.001) fairnessCupRef.current.rotation.z = 0;
+        if (isBrewing) {
+          teapotGroupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 1.8) * 0.06;
+          teapotGroupRef.current.rotation.x = Math.cos(state.clock.elapsedTime * 1.26) * 0.035;
+          teapotGroupRef.current.position.y = 0.16;
+        } else if (pourRef.current > 0) {
+          // Lift teapot up and tilt toward fairness cup
+          const ease = 1 - Math.pow(1 - pourRef.current, 3);
+          teapotGroupRef.current.position.y = 0.16 + ease * 0.22;
+          teapotGroupRef.current.rotation.z = ease * 0.52;
+          teapotGroupRef.current.rotation.x = ease * -0.12;
+        } else {
+          teapotGroupRef.current.rotation.z *= 0.92;
+          teapotGroupRef.current.rotation.x *= 0.92;
+          teapotGroupRef.current.position.y += (0.16 - teapotGroupRef.current.position.y) * 0.12;
+          if (Math.abs(teapotGroupRef.current.rotation.z) < 0.005) teapotGroupRef.current.rotation.z = 0;
+          if (Math.abs(teapotGroupRef.current.rotation.x) < 0.005) teapotGroupRef.current.rotation.x = 0;
+        }
       }
+
+      // Fairness cup fill — liquid rises from bottom, persists after pouring
+      if (isPouring) {
+        pourFillRef.current = Math.min(pourFillRef.current + delta * 0.25, 1);
+      }
+      // NOTE: no decay — once tea is poured, it stays in the cup
+      if (fairnessCupLiquidRef.current) {
+        const fill = pourFillRef.current;
+        // Liquid body fills from bottom up (scale.y grows, position.y rises)
+        fairnessCupLiquidRef.current.scale.y = 0.01 + fill * 0.9;
+        fairnessCupLiquidRef.current.position.y = -0.13 + fill * 0.12;
+        // Opacity and color
+        fairnessCupLiquidRef.current.material.opacity = fill > 0.01 ? 0.78 : 0;
+        fairnessCupLiquidRef.current.material.color.setHex(0xa07828);
+      }
+      // Liquid surface disc — fades in with the fill
+      if (fairnessCupSurfaceRef.current) {
+        const fill = pourFillRef.current;
+        fairnessCupSurfaceRef.current.material.opacity = fill > 0.02 ? 0.65 : 0;
+      }
+
+      if (activeGesture === "smell") {
+        smellRef.current = Math.min(smellRef.current + delta * 0.7, 1);
+      } else {
+        smellRef.current = Math.max(smellRef.current - delta * 0.6, 0);
+      }
+
+      if (activeGesture === "serveGuest") {
+        serveGuestRef.current = Math.min(serveGuestRef.current + delta * 0.6, 1);
+      } else {
+        serveGuestRef.current = Math.max(serveGuestRef.current - delta * 0.5, 0);
+      }
+
+      if (activeGesture === "serve") {
+        serveRef.current = Math.min(serveRef.current + delta * 0.7, 1);
+      } else {
+        serveRef.current = Math.max(serveRef.current - delta * 0.6, 0);
+      }
+
+      if (cup0Ref.current) {
+        const easeSmell = 1 - Math.pow(1 - smellRef.current, 3);
+        const easeServeGuest = 1 - Math.pow(1 - serveGuestRef.current, 3);
+        const easeServe = 1 - Math.pow(1 - serveRef.current, 3);
+        cup0Ref.current.position.y = 0.07 + easeSmell * 0.3;
+        cup0Ref.current.position.z = 0.2 + easeServe * 0.15;
+        const floatVal = serveGuestRef.current * Math.sin(state.clock.elapsedTime * 1.5) * 0.02;
+        cup0Ref.current.position.y += easeServeGuest * 0.45 + floatVal;
+        cup0Ref.current.position.z += easeServeGuest * 0.4;
+      }
+
+      // Cup flip animation — toggle on flipCup, persist state when gesture changes
+      if (activeGesture === "flipCup") {
+        if (!flippedPersisted.current) {
+          flipProgress.current = Math.min(flipProgress.current + delta * 0.8, 1);
+          if (flipProgress.current >= 0.98) flippedPersisted.current = true;
+        } else {
+          flipProgress.current = Math.max(flipProgress.current - delta * 0.8, 0);
+          if (flipProgress.current <= 0.02) flippedPersisted.current = false;
+        }
+      }
+
+      // Apply flip rotation to all cups
+      const easeFlip = 1 - Math.pow(1 - flipProgress.current, 3);
+      const cupCount = tableStyle === "full" ? 4 : 2;
+      for (let i = 0; i < cupCount; i++) {
+        const ref = cupRefsAll.current[i];
+        if (ref.current) {
+          ref.current.rotation.x = Math.PI * (1 - easeFlip);
+        }
+        if (flipProgress.current >= 0.98 && !flippedState.current[i]) {
+          flippedState.current[i] = true;
+        } else if (flipProgress.current < 0.02 && flippedState.current[i]) {
+          flippedState.current[i] = false;
+        }
+      }
+
+      // Liquid level opacity animation
+      for (let i = 0; i < cupCount; i++) {
+        const liquidMesh = liquidRefs.current[i];
+        if (liquidMesh) {
+          const targetOpacity = flippedState.current[i] && filledState.current[i] ? 0.85 : 0;
+          liquidMesh.material.opacity += (targetOpacity - liquidMesh.material.opacity) * delta * 3;
+        }
+      }
+
+      // Fairness cup tilt for distribute
+      if (fairnessCupRef.current) {
+        if (distributeTarget.current >= 0) {
+          distributeProgress.current = Math.min(distributeProgress.current + delta * 0.55, 1);
+          const tiltEase = 1 - Math.pow(1 - distributeProgress.current, 2);
+          fairnessCupRef.current.rotation.z = tiltEase * 0.28;
+
+          if (distributeProgress.current >= 1) {
+            filledState.current[distributeTarget.current] = true;
+            distributeTarget.current = -1;
+            distributeProgress.current = 0;
+          }
+        } else if (fairnessCupRef.current.rotation.z > 0.001) {
+          fairnessCupRef.current.rotation.z *= 0.92;
+          if (fairnessCupRef.current.rotation.z < 0.001) fairnessCupRef.current.rotation.z = 0;
+        }
+      }
+    } catch (e) {
+      // Prevent animation errors from crashing the render loop
     }
   });
 
@@ -1762,16 +1930,40 @@ function TeaSetOnTray({ activeGesture, tableStyle }) {
           <tubeGeometry args={[spoutCurve, 20, 0.038, 10, false]} />
           <meshStandardMaterial color="#5a4a3a" roughness={0.38} />
         </mesh>
-        <TeaPourParticles position={[-0.18, 0.14, -0.08]} active={isPouring} count={35} direction={[-0.4, -0.6, 0.02]} />
         <SteamParticles position={[0, 0.28, 0]} count={isBrewing ? 55 : 30} spread={0.1} riseSpeed={isBrewing ? 0.16 : 0.1} size={isBrewing ? 0.06 : 0.05} opacity={isBrewing ? 0.3 : 0.18} />
+        <WarmWaterParticles active={activeGesture === 'brew' || activeGesture === 'rinseTea'} position={[0, 0.18, 0]} />
+        <LeafDropParticles active={activeGesture === 'appreciateTea'} position={[0, 0.2, 0]} />
       </group>
+
+      {/* Pour stream — tray level, spout tip position when teapot is fully tilted */}
+      <TeaPourParticles position={[0.30, 0.34, -0.08]} active={isPouring} count={40} direction={[-0.35, 0.1, 0.02]} />
 
       {/* Fairness cup (公道杯) - separate ref for tilt animation */}
       <group ref={fairnessCupRef} position={[-0.05, 0.14, -0.06]}>
-        {/* Cup body - wider top, narrower bottom */}
-        <mesh castShadow>
+        {/* Cup body - glass transparent */}
+        <mesh>
           <cylinderGeometry args={[0.14, 0.08, 0.28, 24]} />
-          <meshStandardMaterial color="#f8f2ea" roughness={0.18} />
+          <meshPhysicalMaterial
+            color="#e8e4dc"
+            transparent
+            opacity={0.25}
+            roughness={0.05}
+            metalness={0.0}
+            transmission={0.85}
+            thickness={0.5}
+            ior={1.5}
+            envMapIntensity={0.6}
+          />
+        </mesh>
+        {/* Tea liquid body — fills from bottom, persists after pouring */}
+        <mesh ref={fairnessCupLiquidRef} position={[0, -0.13, 0]}>
+          <cylinderGeometry args={[0.125, 0.065, 0.26, 20]} />
+          <meshStandardMaterial color="#a07828" transparent opacity={0} roughness={0.12} />
+        </mesh>
+        {/* Liquid surface disc — visible fill line at the top of the liquid */}
+        <mesh ref={fairnessCupSurfaceRef} position={[0, 0.13, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[0.125, 20]} />
+          <meshStandardMaterial color="#b88830" transparent opacity={0} roughness={0.08} side={THREE.DoubleSide} />
         </mesh>
         {/* Cup rim - thin torus at the top */}
         <mesh position={[0, 0.14, 0]} rotation={[Math.PI / 2, 0, 0]}>
@@ -1802,6 +1994,11 @@ function TeaSetOnTray({ activeGesture, tableStyle }) {
           >
             <cylinderGeometry args={[0.105, 0.13, 0.14, 24]} />
             <meshStandardMaterial color="#f8f2ea" roughness={0.2} />
+          </mesh>
+          {/* Cup rim — visible color band so flip is noticeable */}
+          <mesh position={[0, -0.065, 0]} rotation={[Math.PI, 0, 0]}>
+            <torusGeometry args={[0.105, 0.008, 8, 24]} />
+            <meshStandardMaterial color="#c89868" roughness={0.3} />
           </mesh>
           {/* Saucer */}
           <mesh position={[0, 0.08, 0]} rotation={[Math.PI, 0, 0]}>

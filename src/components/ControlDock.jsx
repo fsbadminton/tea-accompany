@@ -1,4 +1,5 @@
 import { CONTROL_OPTIONS } from "../data/scenes";
+import { CeremonyTimeline } from "./CeremonyTimeline";
 
 export function ControlDock({
   tableStyle,
@@ -7,6 +8,14 @@ export function ControlDock({
   onTableStyleChange,
   onAudioToggle,
   onGestureChange,
+  ceremonyMode,
+  onCeremonyToggle,
+  ceremonyPaused,
+  onCeremonyPauseToggle,
+  steps,
+  currentStepIndex,
+  completedSteps,
+  onStepClick,
 }) {
   return (
     <aside className="control-dock">
@@ -35,19 +44,58 @@ export function ControlDock({
       </div>
 
       <div className="dock-card">
-        <p className="dock-title">手势</p>
-        <div className="chip-row">
-          {CONTROL_OPTIONS.gestures.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              className={option.value === activeGesture ? "chip is-active" : "chip"}
-              onClick={() => onGestureChange(option.value)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        {ceremonyMode ? (
+          <>
+            <p className="dock-title">茶席流程</p>
+            <CeremonyTimeline
+              steps={steps}
+              currentStepIndex={currentStepIndex}
+              completedSteps={completedSteps}
+              onStepClick={onStepClick}
+            />
+            <div className="ceremony-controls">
+              <button
+                type="button"
+                className="ceremony-btn"
+                onClick={onCeremonyPauseToggle}
+              >
+                {ceremonyPaused ? "继续" : "暂停"}
+              </button>
+              <button
+                type="button"
+                className="ceremony-btn"
+                onClick={onCeremonyToggle}
+              >
+                结束茶席
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="dock-title">手势</p>
+            <div className="chip-row">
+              {CONTROL_OPTIONS.gestures.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={option.value === activeGesture ? "chip is-active" : "chip"}
+                  onClick={() => onGestureChange(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <div className="ceremony-controls" style={{ marginTop: "0.6rem" }}>
+              <button
+                type="button"
+                className="ceremony-btn"
+                onClick={onCeremonyToggle}
+              >
+                开始茶席
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </aside>
   );

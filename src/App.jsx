@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { SCENE_CONFIG, WELCOME_QUOTES } from "./data/scenes";
+import { SCENE_CONFIG, WELCOME_QUOTES, CEREMONY_STEPS, GESTURE_DESCRIPTIONS, CEREMONY_CONFIG } from "./data/scenes";
 import { MainStage } from "./components/MainStage";
 import { TopBar } from "./components/TopBar";
 import { ControlDock } from "./components/ControlDock";
 import { AmbientInfo } from "./components/AmbientInfo";
 import { WelcomeOverlay } from "./components/WelcomeOverlay";
+import { GestureHint } from "./components/GestureHint";
 
 const getTimeSlotFromHour = (hour) => {
   if (hour >= 5 && hour < 9) return "dawn";
@@ -31,6 +32,10 @@ function App() {
   const [showWelcome, setShowWelcome] = useState(() => {
     try { return !sessionStorage.getItem("tea-welcomed"); } catch { return true; }
   });
+  const [ceremonyMode, setCeremonyMode] = useState(false);
+  const [currentStepIndex, setCurrentStepIndex] = useState(-1);
+  const [completedSteps, setCompletedSteps] = useState(new Set());
+  const [ceremonyPaused, setCeremonyPaused] = useState(false);
   const audioRef = useRef(null);
   const audioCtxRef = useRef(null);
   const audioNodesRef = useRef(null);
@@ -48,6 +53,76 @@ function App() {
     setShowWelcome(false);
     try { sessionStorage.setItem("tea-welcomed", "1"); } catch { /* ignore */ }
   }, []);
+
+  // --- Ceremony mode handlers ---
+
+  const handleCeremonyStart = useCallback(() => {
+    setCeremonyMode(true);
+    setCurrentStepIndex(0);
+    setCompletedSteps(new Set());
+    setCeremonyPaused(false);
+    // Set table style to full for ceremony
+    setTableStyle('full');
+  }, []);
+
+  const handleCeremonyStop = useCallback(() => {
+    setCeremonyMode(false);
+    setCurrentStepIndex(-1);
+    setCompletedSteps(new Set());
+    setCeremonyPaused(false);
+    setActiveGesture('pour');
+  }, []);
+
+  const handleCeremonyPauseToggle = useCallback(() => {
+    setCeremonyPaused((p) => !p);
+  }, []);
+
+  const handleStepClick = useCallback((stepIndex) => {
+    if (stepIndex >= 0 && stepIndex < CEREMONY_STEPS.length) {
+      setCurrentStepIndex(stepIndex);
+      setCompletedSteps((prev) => {
+        const next = new Set(prev);
+        // Mark all steps before as completed
+        for (let i = 0; i < stepIndex; i++) {
+          next.add(CEREMONY_STEPS[i].id);
+        }
+        return next;
+      });
+    }
+  }, []);
+
+  const advanceStep = useCallback(() => {
+    setCurrentStepIndex((prev) => {
+      const next = prev + 1;
+      if (next >= CEREMONY_STEPS.length) {
+        // Ceremony complete
+        setTimeout(() => {
+          setCeremonyMode(false);
+          setCurrentStepIndex(-1);
+          setCompletedSteps(new Set());
+        }, 2000);
+        return prev; // stay on last step briefly
+      }
+      // Mark previous step as completed
+      setCompletedSteps((p) => {
+        const n = new Set(p);
+        n.add(CEREMONY_STEPS[prev].id);
+        return n;
+      });
+      return next;
+    });
+  }, []);
+
+  const handleGestureChange = useCallback((gesture) => {
+    if (ceremonyMode) {
+      // Manual gesture click exits ceremony mode
+      setCeremonyMode(false);
+      setCurrentStepIndex(-1);
+      setCompletedSteps(new Set());
+      setCeremonyPaused(false);
+    }
+    setActiveGesture(gesture);
+  }, [ceremonyMode]);
 
   useEffect(() => {
     if (timeMode !== "auto") return undefined;
@@ -81,6 +156,11 @@ function App() {
   const derivedMood = useMemo(() => {
     return currentScene.moods[currentTimeSlot]?.[weather] ?? currentScene.moods.day.clear;
   }, [currentScene, currentTimeSlot, weather]);
+
+  const currentStep = ceremonyMode && currentStepIndex >= 0 ? CEREMONY_STEPS[currentStepIndex] : null;
+  const currentGestureFromStep = currentStep?.gesture ?? null;
+  // In ceremony mode, use the gesture from the current step; in manual mode, use activeGesture
+  const effectiveGesture = ceremonyMode ? currentGestureFromStep : activeGesture;
 
   // Create AudioContext once; only update parameters on scene/weather changes
   useEffect(() => {
@@ -216,6 +296,25 @@ function App() {
     );
   }, [sceneId, weather]);
 
+  // Ceremony auto-play interval
+  useEffect(() => {
+    if (!ceremonyMode || ceremonyPaused || currentStepIndex < 0) return;
+
+    const step = CEREMONY_STEPS[currentStepIndex];
+    if (!step) return;
+
+    // Get duration adapted for current weather
+    const baseDuration = step.duration || CEREMONY_CONFIG.autoPlayInterval;
+    const weatherDuration = step.weatherAdapt?.[weather] ?? baseDuration;
+    const duration = Math.max(weatherDuration, 1500); // minimum 1.5s per step
+
+    const timer = setTimeout(() => {
+      advanceStep();
+    }, duration);
+
+    return () => clearTimeout(timer);
+  }, [ceremonyMode, ceremonyPaused, currentStepIndex, weather, advanceStep]);
+
   const welcomeQuote = useMemo(() => {
     const initialSlot = getTimeSlotFromHour(new Date().getHours());
     const quotes = WELCOME_QUOTES[initialSlot] || WELCOME_QUOTES.day;
@@ -246,7 +345,7 @@ function App() {
         occupancy={occupancy}
         perspective={perspective}
         tableStyle={tableStyle}
-        activeGesture={activeGesture}
+        activeGesture={effectiveGesture}
         mood={derivedMood}
         audioEnabled={audioEnabled}
         sceneTransition={sceneTransition}
@@ -296,8 +395,27 @@ function App() {
           activeGesture={activeGesture}
           onTableStyleChange={setTableStyle}
           onAudioToggle={() => setAudioEnabled((value) => !value)}
-          onGestureChange={setActiveGesture}
+          onGestureChange={handleGestureChange}
+          ceremonyMode={ceremonyMode}
+          onCeremonyToggle={ceremonyMode ? handleCeremonyStop : handleCeremonyStart}
+          ceremonyPaused={ceremonyPaused}
+          onCeremonyPauseToggle={handleCeremonyPauseToggle}
+          steps={CEREMONY_STEPS}
+          currentStepIndex={currentStepIndex}
+          completedSteps={completedSteps}
+          onStepClick={handleStepClick}
         />
+
+        {currentStep && (
+          <GestureHint
+            step={currentStep}
+            sceneId={sceneId}
+            weather={weather}
+            timeSlot={currentTimeSlot}
+            occupancy={occupancy}
+            isVisible={ceremonyMode && !ceremonyPaused}
+          />
+        )}
       </div>
     </div>
   );
