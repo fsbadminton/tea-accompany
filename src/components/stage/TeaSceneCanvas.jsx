@@ -826,6 +826,11 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
     <group>
       <group ref={rightGroupRef} position={[1.82, -0.1, 1.72]}>
         {renderHand(rThumbRef, rIndexRef, rMiddleRef, rRingRef, rPinkyRef, false)}
+        {/* Debug: bright marker sphere */}
+        <mesh position={[0, 0.05, -0.05]}>
+          <sphereGeometry args={[0.04, 12, 12]} />
+          <meshStandardMaterial color="#ff3300" emissive="#ff3300" emissiveIntensity={2} />
+        </mesh>
       </group>
       <group ref={leftGroupRef} position={[-1.85, -0.08, 1.65]}>
         {renderHand(lThumbRef, lIndexRef, lMiddleRef, lRingRef, lPinkyRef, true)}
