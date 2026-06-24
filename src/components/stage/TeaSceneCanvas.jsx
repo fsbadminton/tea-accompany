@@ -2164,10 +2164,6 @@ function TeaSetOnTray({ activeGesture, tableStyle, handHoldingRef }) {
   const pourRef = useRef(0);
   const serveRef = useRef(0);
 
-  // Mark teapot for hand-teapot binding
-  useEffect(() => {
-    if (teapotGroupRef.current) teapotGroupRef.current.userData.__teapot = true;
-  }, []);
   const fairnessCupLiquidRef = useRef(null);
   const fairnessCupSurfaceRef = useRef(null);
   const pourFillRef = useRef(0);
@@ -2339,7 +2335,7 @@ function TeaSetOnTray({ activeGesture, tableStyle, handHoldingRef }) {
 
   return (
     <group position={[0, 0.58, -0.08]}>
-      <group ref={teapotGroupRef} position={[0.78, 0.23, -0.08]}>
+      <group ref={(el) => { teapotGroupRef.current = el; if (el) el.userData.__teapot = true; }} position={[0.78, 0.23, -0.08]}>
         <mesh castShadow>
           <sphereGeometry args={[0.22, 24, 16]} />
           <meshStandardMaterial color="#5a4a3a" roughness={0.38} />
