@@ -490,12 +490,9 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
     const ft = fingerTargets.current;
 
     if (isPour) {
-      // Pour gesture — fixed position near the teapot on tray
-      // Teapot is at local [0.78, 0.23, -0.08] inside TeaSetOnTray at [0, 0.58, -0.08]
-      // So teapot world ≈ [0.78, 0.81, -0.16]
-      // Hand grips the handle, positioned slightly above and behind the teapot
-      rightPosTarget.current.set(0.78, 0.78, 0.15);
-      leftPosTarget.current.set(-1.85, -0.08, 1.65);
+      // Pour gesture — hand grips teapot handle (positions in local space, 6x scaled)
+      rightPosTarget.current.set(0.13, 0.13, 0.025);
+      leftPosTarget.current.set(-0.31, -0.013, 0.275);
       leftRotTarget.current.set(0.08, 0.2, 0.1);
 
       // Phase-specific wrist rotation and fingers
@@ -528,49 +525,49 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
       // Non-pour gestures — use fixed positions
       switch (activeGesture) {
         case "flipCup":
-          rightPosTarget.current.set(0.15, 0.18, 1.05);
+          rightPosTarget.current.set(0.025, 0.03, 0.175);
           rightRotTarget.current.set(0.1, -0.05, -0.1);
-          leftPosTarget.current.set(-0.15, 0.18, 1.05);
+          leftPosTarget.current.set(-0.025, 0.03, 0.175);
           leftRotTarget.current.set(0.1, 0.05, 0.1);
           ft.rT = 0.9; ft.rI = 0.85; ft.rM = 0.8; ft.rR = 0.1; ft.rP = 0.1;
           ft.lT = 0.9; ft.lI = 0.85; ft.lM = 0.8; ft.lR = 0.1; ft.lP = 0.1;
           break;
         case "distribute":
-          rightPosTarget.current.set(-0.05, 0.28, 0.85);
+          rightPosTarget.current.set(-0.008, 0.047, 0.142);
           rightRotTarget.current.set(-0.15, 0.0, -0.15);
-          leftPosTarget.current.set(-1.85, -0.08, 1.65);
+          leftPosTarget.current.set(-0.31, -0.013, 0.275);
           leftRotTarget.current.set(0.08, 0.2, 0.1);
           ft.rT = 0.6; ft.rI = 0.55; ft.rM = 0.5; ft.rR = 0.45; ft.rP = 0.4;
           ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
           break;
         case "smell":
-          rightPosTarget.current.set(0.0, 0.35, 0.75);
+          rightPosTarget.current.set(0.0, 0.058, 0.125);
           rightRotTarget.current.set(-0.4, 0.0, 0.0);
-          leftPosTarget.current.set(-1.85, -0.08, 1.65);
+          leftPosTarget.current.set(-0.31, -0.013, 0.275);
           leftRotTarget.current.set(0.08, 0.2, 0.1);
           ft.rT = 0.5; ft.rI = 0.45; ft.rM = 0.4; ft.rR = 0.35; ft.rP = 0.3;
           ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
           break;
         case "serve":
-          rightPosTarget.current.set(0.0, 0.22, 0.9);
+          rightPosTarget.current.set(0.0, 0.037, 0.15);
           rightRotTarget.current.set(0.05, 0.0, -0.05);
-          leftPosTarget.current.set(-1.85, -0.08, 1.65);
+          leftPosTarget.current.set(-0.31, -0.013, 0.275);
           leftRotTarget.current.set(0.08, 0.2, 0.1);
           ft.rT = 0.45; ft.rI = 0.4; ft.rM = 0.35; ft.rR = 0.3; ft.rP = 0.25;
           ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
           break;
         case "serveGuest":
-          rightPosTarget.current.set(0.0, 0.28, 0.55);
+          rightPosTarget.current.set(0.0, 0.047, 0.092);
           rightRotTarget.current.set(-0.25, 0.0, 0.0);
-          leftPosTarget.current.set(0.0, 0.25, 0.6);
+          leftPosTarget.current.set(0.0, 0.042, 0.1);
           leftRotTarget.current.set(-0.2, 0.0, 0.0);
           ft.rT = 0.4; ft.rI = 0.35; ft.rM = 0.3; ft.rR = 0.25; ft.rP = 0.2;
           ft.lT = 0.4; ft.lI = 0.35; ft.lM = 0.3; ft.lR = 0.25; ft.lP = 0.2;
           break;
         default:
-          rightPosTarget.current.set(1.82, -0.1, 1.72);
+          rightPosTarget.current.set(0.303, -0.017, 0.287);
           rightRotTarget.current.set(0.1, -0.18, -0.12);
-          leftPosTarget.current.set(-1.85, -0.08, 1.65);
+          leftPosTarget.current.set(-0.31, -0.013, 0.275);
           leftRotTarget.current.set(0.08, 0.2, 0.1);
           ft.rT = 0.15; ft.rI = 0.15; ft.rM = 0.15; ft.rR = 0.15; ft.rP = 0.15;
           ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
@@ -588,7 +585,7 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
       rightGroupRef.current.rotation.y += (rightRotTarget.current.y - rightGroupRef.current.rotation.y) * lerpSpeed;
       rightGroupRef.current.rotation.z += (rightRotTarget.current.z - rightGroupRef.current.rotation.z) * lerpSpeed;
       // Subtle idle micro-movement (reduced during pour for stability)
-      const micro = isPour ? 0.002 : 0.006;
+      const micro = isPour ? 0.001 : 0.002;
       rightGroupRef.current.position.x += Math.sin(t * 0.9 + 0.5) * micro;
       rightGroupRef.current.position.y += Math.cos(t * 1.2 + 0.3) * micro * 0.7;
     }
@@ -600,8 +597,8 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
       leftGroupRef.current.rotation.x += (leftRotTarget.current.x - leftGroupRef.current.rotation.x) * lerpSpeed;
       leftGroupRef.current.rotation.y += (leftRotTarget.current.y - leftGroupRef.current.rotation.y) * lerpSpeed;
       leftGroupRef.current.rotation.z += (leftRotTarget.current.z - leftGroupRef.current.rotation.z) * lerpSpeed;
-      leftGroupRef.current.position.x += Math.sin(t * 0.8) * 0.006;
-      leftGroupRef.current.position.y += Math.cos(t * 1.1) * 0.004;
+      leftGroupRef.current.position.x += Math.sin(t * 0.8) * 0.002;
+      leftGroupRef.current.position.y += Math.cos(t * 1.1) * 0.001;
     }
 
     // Animate finger curls (lerp toward target)
@@ -750,15 +747,10 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
 
   return (
     <group>
-      <group ref={rightGroupRef} position={[1.82, -0.1, 1.72]}>
+      <group ref={rightGroupRef} position={[1.82, -0.1, 1.72]} scale={[6, 6, 6]}>
         {renderHand(rThumbRef, rIndexRef, rMiddleRef, rRingRef, rPinkyRef, false)}
-        {/* Debug: bright marker sphere */}
-        <mesh position={[0, 0.05, -0.05]}>
-          <sphereGeometry args={[0.04, 12, 12]} />
-          <meshStandardMaterial color="#ff3300" emissive="#ff3300" emissiveIntensity={2} />
-        </mesh>
       </group>
-      <group ref={leftGroupRef} position={[-1.85, -0.08, 1.65]}>
+      <group ref={leftGroupRef} position={[-1.85, -0.08, 1.65]} scale={[6, 6, 6]}>
         {renderHand(lThumbRef, lIndexRef, lMiddleRef, lRingRef, lPinkyRef, true)}
       </group>
     </group>
