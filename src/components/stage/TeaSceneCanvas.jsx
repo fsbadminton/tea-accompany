@@ -433,19 +433,10 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
   const originalPosRef = useRef(new THREE.Vector3());
   const originalRotRef = useRef(new THREE.Euler());
 
-  // Cleanup on unmount — detach teapot if still attached
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (attachedRef.current && originalParentRef.current) {
-        const teapot = rightGroupRef.current?.children.find(c => c.userData.__teapot);
-        if (teapot) {
-          rightGroupRef.current.remove(teapot);
-          originalParentRef.current.add(teapot);
-          teapot.position.copy(originalPosRef.current);
-          teapot.rotation.copy(originalRotRef.current);
-        }
-        if (handHoldingRef) handHoldingRef.current = false;
-      }
+      if (handHoldingRef) handHoldingRef.current = false;
     };
   }, []);
 
@@ -465,49 +456,12 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
 
     // ─── Pour phase state machine ───
     if (isPour && pourPhaseRef.current === 'idle') {
-      // Start approach: find the teapot/vessel in the scene
-      const scene = rightGroupRef.current?.parent;
-      if (scene) {
-        let teapotGroup = null;
-        scene.traverse((child) => {
-          if (child.userData.__teapot && !teapotGroup) teapotGroup = child;
-        });
-        if (teapotGroup) {
-          // Compute teapot world position
-          const wp = new THREE.Vector3();
-          teapotGroup.getWorldPosition(wp);
-          teapotWorldPos.current.copy(wp);
-          // Store original parent info for detachment
-          originalParentRef.current = teapotGroup.parent;
-          originalPosRef.current.copy(teapotGroup.position);
-          originalRotRef.current.copy(teapotGroup.rotation);
-          // Mark teapot
-          teapotGroup.userData.__teapot = true;
-          pourPhaseRef.current = 'approach';
-          phaseTimerRef.current = 0;
-          // Signal hand is approaching — suppress independent teapot animation
-          if (handHoldingRef) handHoldingRef.current = true;
-        }
-      }
+      pourPhaseRef.current = 'approach';
+      phaseTimerRef.current = 0;
+      if (handHoldingRef) handHoldingRef.current = true;
     }
 
     if (!isPour && pourPhaseRef.current !== 'idle') {
-      // Release: detach teapot from hand
-      if (attachedRef.current && originalParentRef.current && rightGroupRef.current) {
-        const teapot = rightGroupRef.current.children.find(c => c.userData.__teapot);
-        if (teapot) {
-          // Compute current world position
-          const wp = new THREE.Vector3();
-          teapot.getWorldPosition(wp);
-          // Remove from hand, add back to original parent
-          rightGroupRef.current.remove(teapot);
-          originalParentRef.current.add(teapot);
-          // Restore to original resting position
-          teapot.position.copy(originalPosRef.current);
-          teapot.rotation.copy(originalRotRef.current);
-        }
-        attachedRef.current = false;
-      }
       pourPhaseRef.current = 'idle';
       phaseTimerRef.current = 0;
       if (handHoldingRef) handHoldingRef.current = false;
@@ -522,36 +476,6 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
     if (pourPhaseRef.current === 'approach' && phaseTimerRef.current > 0.45) {
       pourPhaseRef.current = 'grip';
       phaseTimerRef.current = 0;
-      // Attach teapot to hand
-      if (!attachedRef.current && originalParentRef.current && rightGroupRef.current) {
-        const teapot = originalParentRef.current.children.find(c => c.userData.__teapot);
-        if (teapot) {
-          // Compute world position before detach
-          const worldPos = new THREE.Vector3();
-          teapot.getWorldPosition(worldPos);
-          const worldQuat = new THREE.Quaternion();
-          teapot.getWorldQuaternion(worldQuat);
-          // Detach from original parent
-          originalParentRef.current.remove(teapot);
-          // Add to hand group
-          rightGroupRef.current.add(teapot);
-          // Preserve world transform: compute local offset in hand space
-          const handWorldQuat = new THREE.Quaternion();
-          rightGroupRef.current.getWorldQuaternion(handWorldQuat);
-          const handWorldQuatInv = handWorldQuat.clone().invert();
-          // Position: transform world position to hand local space
-          const handWorldPos = new THREE.Vector3();
-          rightGroupRef.current.getWorldPosition(handWorldPos);
-          const localOffset = worldPos.clone().sub(handWorldPos).applyQuaternion(handWorldQuatInv);
-          teapot.position.copy(localOffset);
-          // Rotation: transform world rotation to hand local space
-          const localQuat = handWorldQuatInv.clone().multiply(worldQuat);
-          teapot.quaternion.copy(localQuat);
-          // Store grip offset for reference
-          gripOffsetRef.current.copy(localOffset);
-          attachedRef.current = true;
-        }
-      }
     }
     if (pourPhaseRef.current === 'grip' && phaseTimerRef.current > 0.35) {
       pourPhaseRef.current = 'pour';
@@ -566,9 +490,11 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
     const ft = fingerTargets.current;
 
     if (isPour) {
-      // Pour gesture — hand driven by teapot position
-      const handTarget = teapotWorldPos.current.clone().add(new THREE.Vector3(0.08, -0.12, 0.15));
-      rightPosTarget.current.copy(handTarget);
+      // Pour gesture — fixed position near the teapot on tray
+      // Teapot is at local [0.78, 0.23, -0.08] inside TeaSetOnTray at [0, 0.58, -0.08]
+      // So teapot world ≈ [0.78, 0.81, -0.16]
+      // Hand grips the handle, positioned slightly above and behind the teapot
+      rightPosTarget.current.set(0.78, 0.78, 0.15);
       leftPosTarget.current.set(-1.85, -0.08, 1.65);
       leftRotTarget.current.set(0.08, 0.2, 0.1);
 
