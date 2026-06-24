@@ -415,7 +415,6 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
   const lPinkyRef = useRef(null);
 
   const entranceRef = useRef(0);
-  // Initial positions in local space (hand group is 6x scaled → world = local × 6)
   const rightPosTarget = useRef(new THREE.Vector3(0.3, 0.15, 0.28));
   const rightRotTarget = useRef(new THREE.Euler(0.1, -0.18, -0.12));
   const leftPosTarget = useRef(new THREE.Vector3(-0.31, 0.15, 0.28));
@@ -424,19 +423,26 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
   // Finger curl targets per gesture (0 = straight, 1 = fully curled)
   const fingerTargets = useRef({ rT: 0.15, rI: 0.15, rM: 0.15, rR: 0.15, rP: 0.15, lT: 0.15, lI: 0.15, lM: 0.15, lR: 0.15, lP: 0.15 });
 
-  // ─── Hand-Teapot binding state ───
-  const teapotWorldPos = useRef(new THREE.Vector3());
-  const gripOffsetRef = useRef(new THREE.Vector3());
+  // ─── Handle anchor: DummyObject attached to teapot handle ───
+  const handleAnchor = useRef(new THREE.Object3D());
+  const teapotRef = useRef(null);
   const pourPhaseRef = useRef('idle'); // idle | approach | grip | pour | release
-  const attachedRef = useRef(false);
   const phaseTimerRef = useRef(0);
-  const originalParentRef = useRef(null);
-  const originalPosRef = useRef(new THREE.Vector3());
-  const originalRotRef = useRef(new THREE.Euler());
+  const originalTeapotParent = useRef(null);
+  const originalTeapotPos = useRef(new THREE.Vector3());
+  const originalTeapotQuat = useRef(new THREE.Quaternion());
 
-  // Cleanup on unmount
+  // Cleanup on unmount — detach teapot if still attached
   useEffect(() => {
     return () => {
+      if (teapotRef.current && originalTeapotParent.current) {
+        try {
+          teapotRef.current.parent.remove(teapotRef.current);
+          originalTeapotParent.current.add(teapotRef.current);
+          teapotRef.current.position.copy(originalTeapotPos.current);
+          teapotRef.current.quaternion.copy(originalTeapotQuat.current);
+        } catch (e) {}
+      }
       if (handHoldingRef) handHoldingRef.current = false;
     };
   }, []);
@@ -446,14 +452,45 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
     const showHands = ["pour", "distribute", "flipCup", "smell", "serve", "serveGuest"].includes(activeGesture);
     const isPour = activeGesture === "pour";
 
-    // Entrance — fast fade in/out
+    // ─── Entrance ───
     if (showHands) {
       entranceRef.current = Math.min(entranceRef.current + delta * 6, 1);
     } else {
       entranceRef.current = Math.max(entranceRef.current - delta * 4, 0);
     }
-    const ease = entranceRef.current; // linear for instant feel
-    const hiddenY = -0.15; // small offset in local space (= -0.9 world)
+
+    // ─── Find teapot once and cache ───
+    if (!teapotRef.current && rightGroupRef.current) {
+      const scene = rightGroupRef.current.parent;
+      if (scene) {
+        scene.traverse((child) => {
+          if (child.userData.__teapot && !teapotRef.current) {
+            teapotRef.current = child;
+          }
+        });
+      }
+    }
+
+    // ─── Update handle anchor position every frame ───
+    // The anchor is NOT a child of the teapot — we manually sync it
+    // so it always reflects the teapot's current world transform.
+    if (teapotRef.current) {
+      const teapot = teapotRef.current;
+      // Handle offset in teapot local space: torus at [0.3, 0.02, -0.01]
+      // rotated [0, 0, PI/2] → ring in XZ plane, grip at [0.3, 0.17, -0.01]
+      const handleLocal = new THREE.Vector3(0.3, 0.17, -0.01);
+      handleAnchor.current.position.copy(teapot.localToWorld(handleLocal));
+      // Anti-clipping: offset palm outward by tube radius (0.025) + safety margin (0.03)
+      // Direction: away from teapot center (roughly +X in world)
+      const teapotWorld = new THREE.Vector3();
+      teapot.getWorldPosition(teapotWorld);
+      const awayDir = handleAnchor.current.position.clone().sub(teapotWorld).normalize();
+      handleAnchor.current.position.add(awayDir.multiplyScalar(0.055));
+      // Sync rotation
+      const wq = new THREE.Quaternion();
+      teapot.getWorldQuaternion(wq);
+      handleAnchor.current.quaternion.copy(wq);
+    }
 
     // ─── Pour phase state machine ───
     if (isPour && pourPhaseRef.current === 'idle') {
@@ -461,8 +498,30 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
       phaseTimerRef.current = 0;
       if (handHoldingRef) handHoldingRef.current = true;
     }
-
     if (!isPour && pourPhaseRef.current !== 'idle') {
+      // RELEASE: detach teapot from hand, restore to original parent
+      if (teapotRef.current && originalTeapotParent.current) {
+        try {
+          const tp = teapotRef.current;
+          const handGroup = rightGroupRef.current;
+          // Compute teapot world pos/rot while still child of hand
+          const wp = new THREE.Vector3();
+          const wq = new THREE.Quaternion();
+          tp.getWorldPosition(wp);
+          tp.getWorldQuaternion(wq);
+          // Remove from hand
+          handGroup.remove(tp);
+          // Add back to original parent
+          originalTeapotParent.current.add(tp);
+          // Restore world transform in original parent's local space
+          const parentWQ = new THREE.Quaternion();
+          originalTeapotParent.current.getWorldQuaternion(parentWQ);
+          tp.quaternion.copy(parentWQ.invert().multiply(wq));
+          tp.position.copy(wp.applyQuaternion(parentWQ.invert()));
+          tp.updateMatrixWorld(true);
+        } catch (e) {}
+        teapotRef.current = null; // re-find on next pour
+      }
       pourPhaseRef.current = 'idle';
       phaseTimerRef.current = 0;
       if (handHoldingRef) handHoldingRef.current = false;
@@ -474,11 +533,40 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
     }
 
     // Phase transitions
-    if (pourPhaseRef.current === 'approach' && phaseTimerRef.current > 0.45) {
+    if (pourPhaseRef.current === 'approach' && phaseTimerRef.current > 0.5) {
       pourPhaseRef.current = 'grip';
       phaseTimerRef.current = 0;
+      // ATTACH: reparent teapot under hand group
+      if (teapotRef.current && rightGroupRef.current) {
+        try {
+          const tp = teapotRef.current;
+          const handGroup = rightGroupRef.current;
+          // Store original parent info
+          originalTeapotParent.current = tp.parent;
+          originalTeapotPos.current.copy(tp.position);
+          originalTeapotQuat.current.copy(tp.quaternion);
+          // Compute world transform BEFORE detach
+          const wp = new THREE.Vector3();
+          const wq = new THREE.Quaternion();
+          tp.getWorldPosition(wp);
+          tp.getWorldQuaternion(wq);
+          // Detach from original parent
+          tp.parent.remove(tp);
+          // Attach to hand group
+          handGroup.add(tp);
+          // Compute local transform to preserve world position
+          const handWQ = new THREE.Quaternion();
+          handGroup.getWorldQuaternion(handWQ);
+          const handWQInv = handWQ.clone().invert();
+          const handWP = new THREE.Vector3();
+          handGroup.getWorldPosition(handWP);
+          tp.position.copy(wp.sub(handWP).applyQuaternion(handWQInv));
+          tp.quaternion.copy(handWQInv.multiply(wq));
+          tp.updateMatrixWorld(true);
+        } catch (e) {}
+      }
     }
-    if (pourPhaseRef.current === 'grip' && phaseTimerRef.current > 0.35) {
+    if (pourPhaseRef.current === 'grip' && phaseTimerRef.current > 0.4) {
       pourPhaseRef.current = 'pour';
       phaseTimerRef.current = 0;
     }
@@ -490,30 +578,37 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
     // ─── Set gesture targets ───
     const ft = fingerTargets.current;
 
-    if (isPour) {
-      // Pour gesture — hand grips teapot handle
-      // Handle grip world: [1.08, 0.75, -0.05] → local ÷ 6 = [0.18, 0.125, -0.008]
-      // Position hand slightly above grip to avoid tray clipping
-      rightPosTarget.current.set(0.18, 0.17, 0.0);
+    if (isPour && handleAnchor.current) {
+      // Dynamic handle position from localToWorld()
+      const gripWorld = handleAnchor.current.position.clone();
+      // Convert to hand-local space (hand is 6x scaled)
+      const handGroup = rightGroupRef.current;
+      if (handGroup) {
+        const handInv = new THREE.Matrix4().copy(handGroup.matrixWorld).invert();
+        const gripLocal = gripWorld.clone().applyMatrix4(handInv);
+        rightPosTarget.current.copy(gripLocal);
+      }
       leftPosTarget.current.set(-0.31, 0.15, 0.28);
       leftRotTarget.current.set(0.08, 0.2, 0.1);
 
-      // Phase-specific wrist rotation and fingers
       switch (pourPhaseRef.current) {
         case 'approach':
-          rightRotTarget.current.set(-0.1, 0.25, 0.0);
+          // Palm faces handle: rotate Y to face +X (toward handle)
+          rightRotTarget.current.set(-0.05, 0.3, 0.0);
           ft.rT = 0.3; ft.rI = 0.2; ft.rM = 0.2; ft.rR = 0.2; ft.rP = 0.2;
           break;
         case 'grip':
-          rightRotTarget.current.set(-0.1, 0.25, -0.25);
+          rightRotTarget.current.set(-0.05, 0.3, -0.2);
+          // Thumb wraps from top, four fingers curl from bottom
           ft.rT = 0.85; ft.rI = 0.75; ft.rM = 0.7; ft.rR = 0.65; ft.rP = 0.55;
           break;
         case 'pour':
-          rightRotTarget.current.set(-0.1, 0.25, -0.55);
+          // Wrist tilts to pour — Z rotation tips teapot spout down
+          rightRotTarget.current.set(-0.05, 0.3, -0.5);
           ft.rT = 0.9; ft.rI = 0.8; ft.rM = 0.75; ft.rR = 0.7; ft.rP = 0.6;
           break;
         case 'release':
-          rightRotTarget.current.set(-0.1, 0.25, 0.0);
+          rightRotTarget.current.set(-0.05, 0.3, 0.0);
           ft.rT = 0.3; ft.rI = 0.25; ft.rM = 0.2; ft.rR = 0.2; ft.rP = 0.2;
           break;
       }
@@ -571,17 +666,14 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
       }
     }
 
-    const entranceOffset = (1 - ease) * hiddenY;
-    const lerpSpeed = delta * 8; // fast position lerp
+    const lerpSpeed = delta * 8;
 
     // Animate right hand position/rotation
     if (rightGroupRef.current) {
       rightGroupRef.current.position.lerp(rightPosTarget.current, lerpSpeed);
-      rightGroupRef.current.position.y += entranceOffset;
       rightGroupRef.current.rotation.x += (rightRotTarget.current.x - rightGroupRef.current.rotation.x) * lerpSpeed;
       rightGroupRef.current.rotation.y += (rightRotTarget.current.y - rightGroupRef.current.rotation.y) * lerpSpeed;
       rightGroupRef.current.rotation.z += (rightRotTarget.current.z - rightGroupRef.current.rotation.z) * lerpSpeed;
-      // Subtle idle micro-movement (reduced during pour for stability)
       const micro = isPour ? 0.001 : 0.002;
       rightGroupRef.current.position.x += Math.sin(t * 0.9 + 0.5) * micro;
       rightGroupRef.current.position.y += Math.cos(t * 1.2 + 0.3) * micro * 0.7;
@@ -590,7 +682,6 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
     // Animate left hand position/rotation
     if (leftGroupRef.current) {
       leftGroupRef.current.position.lerp(leftPosTarget.current, lerpSpeed);
-      leftGroupRef.current.position.y += entranceOffset;
       leftGroupRef.current.rotation.x += (leftRotTarget.current.x - leftGroupRef.current.rotation.x) * lerpSpeed;
       leftGroupRef.current.rotation.y += (leftRotTarget.current.y - leftGroupRef.current.rotation.y) * lerpSpeed;
       leftGroupRef.current.rotation.z += (leftRotTarget.current.z - leftGroupRef.current.rotation.z) * lerpSpeed;
@@ -598,8 +689,8 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
       leftGroupRef.current.position.y += Math.cos(t * 1.1) * 0.001;
     }
 
-    // Animate finger curls (lerp toward target)
-    const fLerp = delta * 10; // fast finger curl
+    // Animate finger curls
+    const fLerp = delta * 10;
     const animateFinger = (ref, target) => {
       if (ref.current) ref.current.rotation.x += (target - ref.current.rotation.x) * fLerp;
     };
