@@ -415,9 +415,10 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
   const lPinkyRef = useRef(null);
 
   const entranceRef = useRef(0);
-  const rightPosTarget = useRef(new THREE.Vector3(1.82, -0.1, 1.72));
+  // Initial positions in local space (hand group is 6x scaled)
+  const rightPosTarget = useRef(new THREE.Vector3(0.303, -0.017, 0.287));
   const rightRotTarget = useRef(new THREE.Euler(0.1, -0.18, -0.12));
-  const leftPosTarget = useRef(new THREE.Vector3(-1.85, -0.08, 1.65));
+  const leftPosTarget = useRef(new THREE.Vector3(-0.31, -0.013, 0.275));
   const leftRotTarget = useRef(new THREE.Euler(0.08, 0.2, 0.1));
 
   // Finger curl targets per gesture (0 = straight, 1 = fully curled)
@@ -445,14 +446,14 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
     const showHands = ["pour", "distribute", "flipCup", "smell", "serve", "serveGuest"].includes(activeGesture);
     const isPour = activeGesture === "pour";
 
-    // Entrance
+    // Entrance — fast fade in/out
     if (showHands) {
-      entranceRef.current = Math.min(entranceRef.current + delta * 2.5, 1);
+      entranceRef.current = Math.min(entranceRef.current + delta * 6, 1);
     } else {
-      entranceRef.current = Math.max(entranceRef.current - delta * 2.0, 0);
+      entranceRef.current = Math.max(entranceRef.current - delta * 4, 0);
     }
-    const ease = 1 - Math.pow(1 - entranceRef.current, 3);
-    const hiddenY = -0.6;
+    const ease = entranceRef.current; // linear for instant feel
+    const hiddenY = -0.15; // small offset in local space (= -0.9 world)
 
     // ─── Pour phase state machine ───
     if (isPour && pourPhaseRef.current === 'idle') {
@@ -578,7 +579,7 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
     }
 
     const entranceOffset = (1 - ease) * hiddenY;
-    const lerpSpeed = delta * 3.5;
+    const lerpSpeed = delta * 8; // fast position lerp
 
     // Animate right hand position/rotation
     if (rightGroupRef.current) {
@@ -605,7 +606,7 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
     }
 
     // Animate finger curls (lerp toward target)
-    const fLerp = delta * 5;
+    const fLerp = delta * 10; // fast finger curl
     const animateFinger = (ref, target) => {
       if (ref.current) ref.current.rotation.x += (target - ref.current.rotation.x) * fLerp;
     };
@@ -750,10 +751,10 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
 
   return (
     <group>
-      <group ref={rightGroupRef} position={[1.82, -0.1, 1.72]} scale={[6, 6, 6]}>
+      <group ref={rightGroupRef} position={[0.303, -0.017, 0.287]} scale={[6, 6, 6]}>
         {renderHand(rThumbRef, rIndexRef, rMiddleRef, rRingRef, rPinkyRef, false)}
       </group>
-      <group ref={leftGroupRef} position={[-1.85, -0.08, 1.65]} scale={[6, 6, 6]}>
+      <group ref={leftGroupRef} position={[-0.31, -0.013, 0.275]} scale={[6, 6, 6]}>
         {renderHand(lThumbRef, lIndexRef, lMiddleRef, lRingRef, lPinkyRef, true)}
       </group>
     </group>
