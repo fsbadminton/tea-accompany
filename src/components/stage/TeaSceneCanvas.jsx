@@ -415,10 +415,10 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
   const lPinkyRef = useRef(null);
 
   const entranceRef = useRef(0);
-  // Initial positions in local space (hand group is 6x scaled)
-  const rightPosTarget = useRef(new THREE.Vector3(0.303, -0.017, 0.287));
+  // Initial positions in local space (hand group is 6x scaled → world = local × 6)
+  const rightPosTarget = useRef(new THREE.Vector3(0.3, 0.15, 0.28));
   const rightRotTarget = useRef(new THREE.Euler(0.1, -0.18, -0.12));
-  const leftPosTarget = useRef(new THREE.Vector3(-0.31, -0.013, 0.275));
+  const leftPosTarget = useRef(new THREE.Vector3(-0.31, 0.15, 0.28));
   const leftRotTarget = useRef(new THREE.Euler(0.08, 0.2, 0.1));
 
   // Finger curl targets per gesture (0 = straight, 1 = fully curled)
@@ -491,36 +491,29 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
     const ft = fingerTargets.current;
 
     if (isPour) {
-      // Pour gesture — hand grips teapot handle (positions in local space, 6x scaled)
-      // Teapot handle is at torus local [0.3, 0.02, -0.01], grip point ≈ [0.45, 0.02, -0.01]
-      // Teapot group at [0.78, 0.23, -0.08] in TeaSetOnTray at [0, 0.58, -0.08]
-      // Hand target world ≈ [1.23, 0.83, -0.17] → local ÷ 6 ≈ [0.205, 0.138, -0.028]
-      rightPosTarget.current.set(0.205, 0.15, -0.028);
-      leftPosTarget.current.set(-0.31, -0.013, 0.275);
+      // Pour gesture — hand grips teapot handle
+      // Handle grip world: [1.08, 0.75, -0.05] → local ÷ 6 = [0.18, 0.125, -0.008]
+      // Position hand slightly above grip to avoid tray clipping
+      rightPosTarget.current.set(0.18, 0.17, 0.0);
+      leftPosTarget.current.set(-0.31, 0.15, 0.28);
       leftRotTarget.current.set(0.08, 0.2, 0.1);
 
       // Phase-specific wrist rotation and fingers
       switch (pourPhaseRef.current) {
         case 'approach':
-          rightRotTarget.current.set(-0.1, 0.3, 0.0);
-          // Fingers open — ready to grab
+          rightRotTarget.current.set(-0.1, 0.25, 0.0);
           ft.rT = 0.3; ft.rI = 0.2; ft.rM = 0.2; ft.rR = 0.2; ft.rP = 0.2;
           break;
         case 'grip':
-          rightRotTarget.current.set(-0.1, 0.3, -0.25);
-          // Thumb presses cap button, index/middle/ring grip handle, pinky supports
+          rightRotTarget.current.set(-0.1, 0.25, -0.25);
           ft.rT = 0.85; ft.rI = 0.75; ft.rM = 0.7; ft.rR = 0.65; ft.rP = 0.55;
           break;
         case 'pour':
-          // Tilt hand to pour — wrist rotates around Z axis
-          rightRotTarget.current.set(-0.1, 0.3, -0.55);
-          // Maintain firm grip during pour
+          rightRotTarget.current.set(-0.1, 0.25, -0.55);
           ft.rT = 0.9; ft.rI = 0.8; ft.rM = 0.75; ft.rR = 0.7; ft.rP = 0.6;
           break;
         case 'release':
-          // Return hand to neutral
-          rightRotTarget.current.set(-0.1, 0.3, 0.0);
-          // Open fingers
+          rightRotTarget.current.set(-0.1, 0.25, 0.0);
           ft.rT = 0.3; ft.rI = 0.25; ft.rM = 0.2; ft.rR = 0.2; ft.rP = 0.2;
           break;
       }
@@ -529,49 +522,49 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
       // Non-pour gestures — use fixed positions
       switch (activeGesture) {
         case "flipCup":
-          rightPosTarget.current.set(0.025, 0.03, 0.175);
+          rightPosTarget.current.set(0.025, 0.15, 0.175);
           rightRotTarget.current.set(0.1, -0.05, -0.1);
-          leftPosTarget.current.set(-0.025, 0.03, 0.175);
+          leftPosTarget.current.set(-0.025, 0.15, 0.175);
           leftRotTarget.current.set(0.1, 0.05, 0.1);
           ft.rT = 0.9; ft.rI = 0.85; ft.rM = 0.8; ft.rR = 0.1; ft.rP = 0.1;
           ft.lT = 0.9; ft.lI = 0.85; ft.lM = 0.8; ft.lR = 0.1; ft.lP = 0.1;
           break;
         case "distribute":
-          rightPosTarget.current.set(-0.008, 0.047, 0.142);
+          rightPosTarget.current.set(-0.008, 0.15, 0.142);
           rightRotTarget.current.set(-0.15, 0.0, -0.15);
-          leftPosTarget.current.set(-0.31, -0.013, 0.275);
+          leftPosTarget.current.set(-0.31, 0.15, 0.28);
           leftRotTarget.current.set(0.08, 0.2, 0.1);
           ft.rT = 0.6; ft.rI = 0.55; ft.rM = 0.5; ft.rR = 0.45; ft.rP = 0.4;
           ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
           break;
         case "smell":
-          rightPosTarget.current.set(0.0, 0.058, 0.125);
+          rightPosTarget.current.set(0.0, 0.17, 0.125);
           rightRotTarget.current.set(-0.4, 0.0, 0.0);
-          leftPosTarget.current.set(-0.31, -0.013, 0.275);
+          leftPosTarget.current.set(-0.31, 0.15, 0.28);
           leftRotTarget.current.set(0.08, 0.2, 0.1);
           ft.rT = 0.5; ft.rI = 0.45; ft.rM = 0.4; ft.rR = 0.35; ft.rP = 0.3;
           ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
           break;
         case "serve":
-          rightPosTarget.current.set(0.0, 0.037, 0.15);
+          rightPosTarget.current.set(0.0, 0.15, 0.15);
           rightRotTarget.current.set(0.05, 0.0, -0.05);
-          leftPosTarget.current.set(-0.31, -0.013, 0.275);
+          leftPosTarget.current.set(-0.31, 0.15, 0.28);
           leftRotTarget.current.set(0.08, 0.2, 0.1);
           ft.rT = 0.45; ft.rI = 0.4; ft.rM = 0.35; ft.rR = 0.3; ft.rP = 0.25;
           ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
           break;
         case "serveGuest":
-          rightPosTarget.current.set(0.0, 0.047, 0.092);
+          rightPosTarget.current.set(0.0, 0.16, 0.092);
           rightRotTarget.current.set(-0.25, 0.0, 0.0);
-          leftPosTarget.current.set(0.0, 0.042, 0.1);
+          leftPosTarget.current.set(0.0, 0.15, 0.1);
           leftRotTarget.current.set(-0.2, 0.0, 0.0);
           ft.rT = 0.4; ft.rI = 0.35; ft.rM = 0.3; ft.rR = 0.25; ft.rP = 0.2;
           ft.lT = 0.4; ft.lI = 0.35; ft.lM = 0.3; ft.lR = 0.25; ft.lP = 0.2;
           break;
         default:
-          rightPosTarget.current.set(0.303, -0.017, 0.287);
+          rightPosTarget.current.set(0.3, 0.15, 0.28);
           rightRotTarget.current.set(0.1, -0.18, -0.12);
-          leftPosTarget.current.set(-0.31, -0.013, 0.275);
+          leftPosTarget.current.set(-0.31, 0.15, 0.28);
           leftRotTarget.current.set(0.08, 0.2, 0.1);
           ft.rT = 0.15; ft.rI = 0.15; ft.rM = 0.15; ft.rR = 0.15; ft.rP = 0.15;
           ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
@@ -751,10 +744,10 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
 
   return (
     <group>
-      <group ref={rightGroupRef} position={[0.303, -0.017, 0.287]} scale={[6, 6, 6]}>
+      <group ref={rightGroupRef} position={[0.3, 0.15, 0.28]} scale={[6, 6, 6]}>
         {renderHand(rThumbRef, rIndexRef, rMiddleRef, rRingRef, rPinkyRef, false)}
       </group>
-      <group ref={leftGroupRef} position={[-0.31, -0.013, 0.275]} scale={[6, 6, 6]}>
+      <group ref={leftGroupRef} position={[-0.31, 0.15, 0.28]} scale={[6, 6, 6]}>
         {renderHand(lThumbRef, lIndexRef, lMiddleRef, lRingRef, lPinkyRef, true)}
       </group>
     </group>
