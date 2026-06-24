@@ -139,11 +139,6 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
   const isPouring = activeGesture === "pour";
   const isBrewing = activeGesture === "brew";
 
-  // Mark gaiwan for hand-teapot binding
-  useEffect(() => {
-    if (gaiwanRef.current) gaiwanRef.current.userData.__teapot = true;
-  }, []);
-
   // Cup flip and distribute state
   const flipProgress = useRef(0);
   const flippedPersisted = useRef(false);
@@ -314,7 +309,7 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
         </mesh>
 
         {/* Gaiwan */}
-        <group ref={gaiwanRef} position={[-0.1, 0.62, -0.02]}>
+        <group ref={(el) => { gaiwanRef.current = el; if (el) el.userData.__teapot = true; }} position={[-0.1, 0.62, -0.02]}>
           <mesh castShadow>
             <cylinderGeometry args={[0.16, 0.2, 0.2, 24]} />
             <meshStandardMaterial color="#f8f2ea" roughness={0.2} />
