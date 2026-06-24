@@ -129,7 +129,7 @@ function TeaPet({ position = [0, 0, 0] }) {
   );
 }
 
-function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c89868", activeGesture, tableStyle }) {
+function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c89868", activeGesture, tableStyle, handHoldingRef }) {
   const gaiwanRef = useRef(null);
   const cupRef = useRef(null);
   const smellRef = useRef(0);
@@ -184,11 +184,12 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
         serveRef.current = Math.max(serveRef.current - delta * 0.6, 0);
       }
 
-      // Gaiwan tilt for pour/brew
-      if (isPouring || isBrewing) {
+      // Gaiwan tilt for pour/brew — suppressed when hand is holding
+      const handHeld = handHoldingRef && handHoldingRef.current;
+      if ((isPouring || isBrewing) && !handHeld) {
         gaiwanRef.current.rotation.z = Math.sin(pourRef.current * Math.PI) * 0.28 * (isBrewing ? 0.2 : 1);
         gaiwanRef.current.rotation.x = isBrewing ? Math.cos(pourRef.current * Math.PI * 0.7) * 0.03 : 0;
-      } else {
+      } else if (!handHeld) {
         gaiwanRef.current.rotation.z *= 0.94;
         gaiwanRef.current.rotation.x *= 0.94;
         if (Math.abs(gaiwanRef.current.rotation.z) < 0.005) gaiwanRef.current.rotation.z = 0;
@@ -308,7 +309,7 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
         </mesh>
 
         {/* Gaiwan */}
-        <group ref={gaiwanRef} position={[-0.1, 0.62, -0.02]}>
+        <group ref={(el) => { gaiwanRef.current = el; if (el) el.userData.__teapot = true; }} position={[-0.1, 0.62, -0.02]}>
           <mesh castShadow>
             <cylinderGeometry args={[0.16, 0.2, 0.2, 24]} />
             <meshStandardMaterial color="#f8f2ea" roughness={0.2} />
@@ -392,7 +393,7 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
   );
 }
 
-function FirstPersonHands({ activeGesture }) {
+function FirstPersonHands({ activeGesture, handHoldingRef }) {
   const leftGroupRef = useRef(null);
   const rightGroupRef = useRef(null);
   // Finger joint refs for right hand
@@ -417,9 +418,36 @@ function FirstPersonHands({ activeGesture }) {
   // Finger curl targets per gesture (0 = straight, 1 = fully curled)
   const fingerTargets = useRef({ rT: 0.15, rI: 0.15, rM: 0.15, rR: 0.15, rP: 0.15, lT: 0.15, lI: 0.15, lM: 0.15, lR: 0.15, lP: 0.15 });
 
+  // ─── Hand-Teapot binding state ───
+  const teapotWorldPos = useRef(new THREE.Vector3());
+  const gripOffsetRef = useRef(new THREE.Vector3());
+  const pourPhaseRef = useRef('idle'); // idle | approach | grip | pour | release
+  const attachedRef = useRef(false);
+  const phaseTimerRef = useRef(0);
+  const originalParentRef = useRef(null);
+  const originalPosRef = useRef(new THREE.Vector3());
+  const originalRotRef = useRef(new THREE.Euler());
+
+  // Cleanup on unmount — detach teapot if still attached
+  useEffect(() => {
+    return () => {
+      if (attachedRef.current && originalParentRef.current) {
+        const teapot = rightGroupRef.current?.children.find(c => c.userData.__teapot);
+        if (teapot) {
+          rightGroupRef.current.remove(teapot);
+          originalParentRef.current.add(teapot);
+          teapot.position.copy(originalPosRef.current);
+          teapot.rotation.copy(originalRotRef.current);
+        }
+        if (handHoldingRef) handHoldingRef.current = false;
+      }
+    };
+  }, []);
+
   useFrame((state, delta) => {
     const t = state.clock.elapsedTime;
     const showHands = ["pour", "distribute", "flipCup", "smell", "serve", "serveGuest"].includes(activeGesture);
+    const isPour = activeGesture === "pour";
 
     // Entrance
     if (showHands) {
@@ -430,70 +458,192 @@ function FirstPersonHands({ activeGesture }) {
     const ease = 1 - Math.pow(1 - entranceRef.current, 3);
     const hiddenY = -0.6;
 
-    // Gesture targets
+    // ─── Pour phase state machine ───
+    if (isPour && pourPhaseRef.current === 'idle') {
+      // Start approach: find the teapot/vessel in the scene
+      const scene = rightGroupRef.current?.parent;
+      if (scene) {
+        let teapotGroup = null;
+        scene.traverse((child) => {
+          if (child.userData.__teapot && !teapotGroup) teapotGroup = child;
+        });
+        if (teapotGroup) {
+          // Compute teapot world position
+          const wp = new THREE.Vector3();
+          teapotGroup.getWorldPosition(wp);
+          teapotWorldPos.current.copy(wp);
+          // Store original parent info for detachment
+          originalParentRef.current = teapotGroup.parent;
+          originalPosRef.current.copy(teapotGroup.position);
+          originalRotRef.current.copy(teapotGroup.rotation);
+          // Mark teapot
+          teapotGroup.userData.__teapot = true;
+          pourPhaseRef.current = 'approach';
+          phaseTimerRef.current = 0;
+          // Signal hand is approaching — suppress independent teapot animation
+          if (handHoldingRef) handHoldingRef.current = true;
+        }
+      }
+    }
+
+    if (!isPour && pourPhaseRef.current !== 'idle') {
+      // Release: detach teapot from hand
+      if (attachedRef.current && originalParentRef.current && rightGroupRef.current) {
+        const teapot = rightGroupRef.current.children.find(c => c.userData.__teapot);
+        if (teapot) {
+          // Compute current world position
+          const wp = new THREE.Vector3();
+          teapot.getWorldPosition(wp);
+          // Remove from hand, add back to original parent
+          rightGroupRef.current.remove(teapot);
+          originalParentRef.current.add(teapot);
+          // Restore to original resting position
+          teapot.position.copy(originalPosRef.current);
+          teapot.rotation.copy(originalRotRef.current);
+        }
+        attachedRef.current = false;
+      }
+      pourPhaseRef.current = 'idle';
+      phaseTimerRef.current = 0;
+      if (handHoldingRef) handHoldingRef.current = false;
+    }
+
+    // Phase timer
+    if (pourPhaseRef.current !== 'idle') {
+      phaseTimerRef.current += delta;
+    }
+
+    // Phase transitions
+    if (pourPhaseRef.current === 'approach' && phaseTimerRef.current > 0.45) {
+      pourPhaseRef.current = 'grip';
+      phaseTimerRef.current = 0;
+      // Attach teapot to hand
+      if (!attachedRef.current && originalParentRef.current && rightGroupRef.current) {
+        const teapot = originalParentRef.current.children.find(c => c.userData.__teapot);
+        if (teapot) {
+          // Compute world position before detach
+          const worldPos = new THREE.Vector3();
+          teapot.getWorldPosition(worldPos);
+          const worldQuat = new THREE.Quaternion();
+          teapot.getWorldQuaternion(worldQuat);
+          // Detach from original parent
+          originalParentRef.current.remove(teapot);
+          // Add to hand group
+          rightGroupRef.current.add(teapot);
+          // Preserve world transform: compute local offset in hand space
+          const handWorldQuat = new THREE.Quaternion();
+          rightGroupRef.current.getWorldQuaternion(handWorldQuat);
+          const handWorldQuatInv = handWorldQuat.clone().invert();
+          // Position: transform world position to hand local space
+          const handWorldPos = new THREE.Vector3();
+          rightGroupRef.current.getWorldPosition(handWorldPos);
+          const localOffset = worldPos.clone().sub(handWorldPos).applyQuaternion(handWorldQuatInv);
+          teapot.position.copy(localOffset);
+          // Rotation: transform world rotation to hand local space
+          const localQuat = handWorldQuatInv.clone().multiply(worldQuat);
+          teapot.quaternion.copy(localQuat);
+          // Store grip offset for reference
+          gripOffsetRef.current.copy(localOffset);
+          attachedRef.current = true;
+        }
+      }
+    }
+    if (pourPhaseRef.current === 'grip' && phaseTimerRef.current > 0.35) {
+      pourPhaseRef.current = 'pour';
+      phaseTimerRef.current = 0;
+    }
+    if (pourPhaseRef.current === 'pour' && phaseTimerRef.current > 2.5) {
+      pourPhaseRef.current = 'release';
+      phaseTimerRef.current = 0;
+    }
+
+    // ─── Set gesture targets ───
     const ft = fingerTargets.current;
-    switch (activeGesture) {
-      case "pour":
-        rightPosTarget.current.set(0.78, 0.35, 0.92);
-        rightRotTarget.current.set(-0.2, -0.4, -0.3);
-        leftPosTarget.current.set(-1.85, -0.08, 1.65);
-        leftRotTarget.current.set(0.08, 0.2, 0.1);
-        // Thumb on lid, fingers wrapped around handle
-        ft.rT = 0.8; ft.rI = 0.7; ft.rM = 0.65; ft.rR = 0.6; ft.rP = 0.55;
-        ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
-        break;
-      case "flipCup":
-        rightPosTarget.current.set(0.15, 0.18, 1.05);
-        rightRotTarget.current.set(0.1, -0.05, -0.1);
-        leftPosTarget.current.set(-0.15, 0.18, 1.05);
-        leftRotTarget.current.set(0.1, 0.05, 0.1);
-        // Three-finger pinch (thumb, index, middle curled, ring/pinky straight)
-        ft.rT = 0.9; ft.rI = 0.85; ft.rM = 0.8; ft.rR = 0.1; ft.rP = 0.1;
-        ft.lT = 0.9; ft.lI = 0.85; ft.lM = 0.8; ft.lR = 0.1; ft.lP = 0.1;
-        break;
-      case "distribute":
-        rightPosTarget.current.set(-0.05, 0.28, 0.85);
-        rightRotTarget.current.set(-0.15, 0.0, -0.15);
-        leftPosTarget.current.set(-1.85, -0.08, 1.65);
-        leftRotTarget.current.set(0.08, 0.2, 0.1);
-        // Holding fairness cup — fingers wrap around
-        ft.rT = 0.6; ft.rI = 0.55; ft.rM = 0.5; ft.rR = 0.45; ft.rP = 0.4;
-        ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
-        break;
-      case "smell":
-        rightPosTarget.current.set(0.0, 0.35, 0.75);
-        rightRotTarget.current.set(-0.4, 0.0, 0.0);
-        leftPosTarget.current.set(-1.85, -0.08, 1.65);
-        leftRotTarget.current.set(0.08, 0.2, 0.1);
-        // Cup held near face — gentle hold
-        ft.rT = 0.5; ft.rI = 0.45; ft.rM = 0.4; ft.rR = 0.35; ft.rP = 0.3;
-        ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
-        break;
-      case "serve":
-        rightPosTarget.current.set(0.0, 0.22, 0.9);
-        rightRotTarget.current.set(0.05, 0.0, -0.05);
-        leftPosTarget.current.set(-1.85, -0.08, 1.65);
-        leftRotTarget.current.set(0.08, 0.2, 0.1);
-        // Holding cup flat
-        ft.rT = 0.45; ft.rI = 0.4; ft.rM = 0.35; ft.rR = 0.3; ft.rP = 0.25;
-        ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
-        break;
-      case "serveGuest":
-        rightPosTarget.current.set(0.0, 0.28, 0.55);
-        rightRotTarget.current.set(-0.25, 0.0, 0.0);
-        leftPosTarget.current.set(0.0, 0.25, 0.6);
-        leftRotTarget.current.set(-0.2, 0.0, 0.0);
-        // Both hands offering — gentle open hold
-        ft.rT = 0.4; ft.rI = 0.35; ft.rM = 0.3; ft.rR = 0.25; ft.rP = 0.2;
-        ft.lT = 0.4; ft.lI = 0.35; ft.lM = 0.3; ft.lR = 0.25; ft.lP = 0.2;
-        break;
-      default:
-        rightPosTarget.current.set(1.82, -0.1, 1.72);
-        rightRotTarget.current.set(0.1, -0.18, -0.12);
-        leftPosTarget.current.set(-1.85, -0.08, 1.65);
-        leftRotTarget.current.set(0.08, 0.2, 0.1);
-        ft.rT = 0.15; ft.rI = 0.15; ft.rM = 0.15; ft.rR = 0.15; ft.rP = 0.15;
-        ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
+
+    if (isPour) {
+      // Pour gesture — hand driven by teapot position
+      const handTarget = teapotWorldPos.current.clone().add(new THREE.Vector3(0.08, -0.12, 0.15));
+      rightPosTarget.current.copy(handTarget);
+      leftPosTarget.current.set(-1.85, -0.08, 1.65);
+      leftRotTarget.current.set(0.08, 0.2, 0.1);
+
+      // Phase-specific wrist rotation and fingers
+      switch (pourPhaseRef.current) {
+        case 'approach':
+          rightRotTarget.current.set(-0.15, -0.2, 0.0);
+          // Fingers open — ready to grab
+          ft.rT = 0.3; ft.rI = 0.2; ft.rM = 0.2; ft.rR = 0.2; ft.rP = 0.2;
+          break;
+        case 'grip':
+          rightRotTarget.current.set(-0.15, -0.2, -0.25);
+          // Thumb presses cap button, index/middle/ring grip handle, pinky supports
+          ft.rT = 0.85; ft.rI = 0.75; ft.rM = 0.7; ft.rR = 0.65; ft.rP = 0.55;
+          break;
+        case 'pour':
+          // Tilt hand to pour — wrist rotates around Z axis
+          rightRotTarget.current.set(-0.15, -0.2, -0.6);
+          // Maintain firm grip during pour
+          ft.rT = 0.9; ft.rI = 0.8; ft.rM = 0.75; ft.rR = 0.7; ft.rP = 0.6;
+          break;
+        case 'release':
+          // Return hand to neutral
+          rightRotTarget.current.set(-0.15, -0.2, 0.0);
+          // Open fingers
+          ft.rT = 0.3; ft.rI = 0.25; ft.rM = 0.2; ft.rR = 0.2; ft.rP = 0.2;
+          break;
+      }
+      ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
+    } else {
+      // Non-pour gestures — use fixed positions
+      switch (activeGesture) {
+        case "flipCup":
+          rightPosTarget.current.set(0.15, 0.18, 1.05);
+          rightRotTarget.current.set(0.1, -0.05, -0.1);
+          leftPosTarget.current.set(-0.15, 0.18, 1.05);
+          leftRotTarget.current.set(0.1, 0.05, 0.1);
+          ft.rT = 0.9; ft.rI = 0.85; ft.rM = 0.8; ft.rR = 0.1; ft.rP = 0.1;
+          ft.lT = 0.9; ft.lI = 0.85; ft.lM = 0.8; ft.lR = 0.1; ft.lP = 0.1;
+          break;
+        case "distribute":
+          rightPosTarget.current.set(-0.05, 0.28, 0.85);
+          rightRotTarget.current.set(-0.15, 0.0, -0.15);
+          leftPosTarget.current.set(-1.85, -0.08, 1.65);
+          leftRotTarget.current.set(0.08, 0.2, 0.1);
+          ft.rT = 0.6; ft.rI = 0.55; ft.rM = 0.5; ft.rR = 0.45; ft.rP = 0.4;
+          ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
+          break;
+        case "smell":
+          rightPosTarget.current.set(0.0, 0.35, 0.75);
+          rightRotTarget.current.set(-0.4, 0.0, 0.0);
+          leftPosTarget.current.set(-1.85, -0.08, 1.65);
+          leftRotTarget.current.set(0.08, 0.2, 0.1);
+          ft.rT = 0.5; ft.rI = 0.45; ft.rM = 0.4; ft.rR = 0.35; ft.rP = 0.3;
+          ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
+          break;
+        case "serve":
+          rightPosTarget.current.set(0.0, 0.22, 0.9);
+          rightRotTarget.current.set(0.05, 0.0, -0.05);
+          leftPosTarget.current.set(-1.85, -0.08, 1.65);
+          leftRotTarget.current.set(0.08, 0.2, 0.1);
+          ft.rT = 0.45; ft.rI = 0.4; ft.rM = 0.35; ft.rR = 0.3; ft.rP = 0.25;
+          ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
+          break;
+        case "serveGuest":
+          rightPosTarget.current.set(0.0, 0.28, 0.55);
+          rightRotTarget.current.set(-0.25, 0.0, 0.0);
+          leftPosTarget.current.set(0.0, 0.25, 0.6);
+          leftRotTarget.current.set(-0.2, 0.0, 0.0);
+          ft.rT = 0.4; ft.rI = 0.35; ft.rM = 0.3; ft.rR = 0.25; ft.rP = 0.2;
+          ft.lT = 0.4; ft.lI = 0.35; ft.lM = 0.3; ft.lR = 0.25; ft.lP = 0.2;
+          break;
+        default:
+          rightPosTarget.current.set(1.82, -0.1, 1.72);
+          rightRotTarget.current.set(0.1, -0.18, -0.12);
+          leftPosTarget.current.set(-1.85, -0.08, 1.65);
+          leftRotTarget.current.set(0.08, 0.2, 0.1);
+          ft.rT = 0.15; ft.rI = 0.15; ft.rM = 0.15; ft.rR = 0.15; ft.rP = 0.15;
+          ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
+      }
     }
 
     const entranceOffset = (1 - ease) * hiddenY;
@@ -506,8 +656,10 @@ function FirstPersonHands({ activeGesture }) {
       rightGroupRef.current.rotation.x += (rightRotTarget.current.x - rightGroupRef.current.rotation.x) * lerpSpeed;
       rightGroupRef.current.rotation.y += (rightRotTarget.current.y - rightGroupRef.current.rotation.y) * lerpSpeed;
       rightGroupRef.current.rotation.z += (rightRotTarget.current.z - rightGroupRef.current.rotation.z) * lerpSpeed;
-      rightGroupRef.current.position.x += Math.sin(t * 0.9 + 0.5) * 0.006;
-      rightGroupRef.current.position.y += Math.cos(t * 1.2 + 0.3) * 0.004;
+      // Subtle idle micro-movement (reduced during pour for stability)
+      const micro = isPour ? 0.002 : 0.006;
+      rightGroupRef.current.position.x += Math.sin(t * 0.9 + 0.5) * micro;
+      rightGroupRef.current.position.y += Math.cos(t * 1.2 + 0.3) * micro * 0.7;
     }
 
     // Animate left hand position/rotation
@@ -1955,7 +2107,7 @@ function ExteriorWrap({ color }) {
   );
 }
 
-function RectTeaTable3D({ activeGesture, tableStyle }) {
+function RectTeaTable3D({ activeGesture, tableStyle, handHoldingRef }) {
   return (
     <Float speed={0.7} rotationIntensity={0.008} floatIntensity={0.025}>
       <group position={[0, -0.23, 0.12]}>
@@ -1977,13 +2129,13 @@ function RectTeaTable3D({ activeGesture, tableStyle }) {
             <meshStandardMaterial color="#5c3d26" roughness={0.8} />
           </mesh>
         ))}
-        <TeaSetOnTray activeGesture={activeGesture} tableStyle={tableStyle} />
+        <TeaSetOnTray activeGesture={activeGesture} tableStyle={tableStyle} handHoldingRef={handHoldingRef} />
       </group>
     </Float>
   );
 }
 
-function TeaSetOnTray({ activeGesture, tableStyle }) {
+function TeaSetOnTray({ activeGesture, tableStyle, handHoldingRef }) {
   const isPouring = activeGesture === "pour";
   const isBrewing = activeGesture === "brew";
   const teapotGroupRef = useRef(null);
@@ -2014,28 +2166,32 @@ function TeaSetOnTray({ activeGesture, tableStyle }) {
 
   useFrame((state, delta) => {
     try {
+      const handHeld = handHoldingRef && handHoldingRef.current;
       if (teapotGroupRef.current) {
         if (isPouring) {
           pourRef.current = Math.min(pourRef.current + delta * 0.7, 1);
         } else {
           pourRef.current = Math.max(pourRef.current - delta * 0.6, 0);
         }
-        if (isBrewing) {
-          teapotGroupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 1.8) * 0.06;
-          teapotGroupRef.current.rotation.x = Math.cos(state.clock.elapsedTime * 1.26) * 0.035;
-          teapotGroupRef.current.position.y = 0.23;
-        } else if (pourRef.current > 0) {
-          // Lift teapot up and tilt toward fairness cup
-          const ease = 1 - Math.pow(1 - pourRef.current, 3);
-          teapotGroupRef.current.position.y = 0.23 + ease * 0.22;
-          teapotGroupRef.current.rotation.z = ease * 0.52;
-          teapotGroupRef.current.rotation.x = ease * -0.12;
-        } else {
-          teapotGroupRef.current.rotation.z *= 0.92;
-          teapotGroupRef.current.rotation.x *= 0.92;
-          teapotGroupRef.current.position.y += (0.23 - teapotGroupRef.current.position.y) * 0.12;
-          if (Math.abs(teapotGroupRef.current.rotation.z) < 0.005) teapotGroupRef.current.rotation.z = 0;
-          if (Math.abs(teapotGroupRef.current.rotation.x) < 0.005) teapotGroupRef.current.rotation.x = 0;
+        // Suppress independent teapot animation when hand is holding it
+        if (!handHeld) {
+          if (isBrewing) {
+            teapotGroupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 1.8) * 0.06;
+            teapotGroupRef.current.rotation.x = Math.cos(state.clock.elapsedTime * 1.26) * 0.035;
+            teapotGroupRef.current.position.y = 0.23;
+          } else if (pourRef.current > 0) {
+            // Lift teapot up and tilt toward fairness cup
+            const ease = 1 - Math.pow(1 - pourRef.current, 3);
+            teapotGroupRef.current.position.y = 0.23 + ease * 0.22;
+            teapotGroupRef.current.rotation.z = ease * 0.52;
+            teapotGroupRef.current.rotation.x = ease * -0.12;
+          } else {
+            teapotGroupRef.current.rotation.z *= 0.92;
+            teapotGroupRef.current.rotation.x *= 0.92;
+            teapotGroupRef.current.position.y += (0.23 - teapotGroupRef.current.position.y) * 0.12;
+            if (Math.abs(teapotGroupRef.current.rotation.z) < 0.005) teapotGroupRef.current.rotation.z = 0;
+            if (Math.abs(teapotGroupRef.current.rotation.x) < 0.005) teapotGroupRef.current.rotation.x = 0;
+          }
         }
       }
 
@@ -2163,7 +2319,7 @@ function TeaSetOnTray({ activeGesture, tableStyle }) {
 
   return (
     <group position={[0, 0.58, -0.08]}>
-      <group ref={teapotGroupRef} position={[0.78, 0.23, -0.08]}>
+      <group ref={(el) => { teapotGroupRef.current = el; if (el) el.userData.__teapot = true; }} position={[0.78, 0.23, -0.08]}>
         <mesh castShadow>
           <sphereGeometry args={[0.22, 24, 16]} />
           <meshStandardMaterial color="#5a4a3a" roughness={0.38} />
@@ -2300,6 +2456,7 @@ function SharedLighting({ mood, intensity = 1.5, spotColor = "#f9ead8", fogRange
 }
 
 function LakesideScene({ mood, weather, perspective, activeGesture, tableStyle, occupancy }) {
+  const handHoldingRef = useRef(false);
   const skyColor = weather === "rain" ? "#6a8898" : "#5ac8e8";
   return (
     <>
@@ -2318,12 +2475,12 @@ function LakesideScene({ mood, weather, perspective, activeGesture, tableStyle, 
       <Mountain position={[0.8, 1.35, -8.2]} scale={[2.8, 3.2, 2.7]} color="#778d8c" />
       <Mountain position={[5.7, 1, -7.5]} scale={[2.2, 2.4, 2.2]} color="#69807d" />
       <Pavilion />
-      <TeaTable3D activeGesture={activeGesture} tableStyle={tableStyle} />
+      <TeaTable3D activeGesture={activeGesture} tableStyle={tableStyle} handHoldingRef={handHoldingRef} />
       <SilhouetteGuests perspective={perspective} sceneId="lakeside" occupancy={occupancy} />
       {perspective === "firstPerson" && (
         <>
           <FirstPersonTeaFocus active sceneId="lakeside" />
-          <FirstPersonHands activeGesture={activeGesture} />
+          <FirstPersonHands activeGesture={activeGesture} handHoldingRef={handHoldingRef} />
           <FirstPersonCup />
         </>
       )}
@@ -2334,6 +2491,7 @@ function LakesideScene({ mood, weather, perspective, activeGesture, tableStyle, 
 }
 
 function CourtyardScene({ mood, weather, perspective, activeGesture, tableStyle, occupancy }) {
+  const handHoldingRef = useRef(false);
   const skyColor = weather === "rain" ? "#6a8898" : "#78c8e0";
   return (
     <>
@@ -2357,12 +2515,12 @@ function CourtyardScene({ mood, weather, perspective, activeGesture, tableStyle,
       {/* Distant bamboo */}
       <BambooCluster x={-6} z={-5.5} />
       <BambooCluster x={6.5} z={-5} />
-      <TeaTable3D position={[0, 0.18, 0.6]} wood="#826450" tray="#c09068" activeGesture={activeGesture} tableStyle={tableStyle} />
+      <TeaTable3D position={[0, 0.18, 0.6]} wood="#826450" tray="#c09068" activeGesture={activeGesture} tableStyle={tableStyle} handHoldingRef={handHoldingRef} />
       <SilhouetteGuests perspective={perspective} sceneId="courtyard" occupancy={occupancy} />
       {perspective === "firstPerson" && (
         <>
           <FirstPersonTeaFocus active sceneId="courtyard" />
-          <FirstPersonHands activeGesture={activeGesture} />
+          <FirstPersonHands activeGesture={activeGesture} handHoldingRef={handHoldingRef} />
           <FirstPersonCup />
         </>
       )}
@@ -2373,15 +2531,16 @@ function CourtyardScene({ mood, weather, perspective, activeGesture, tableStyle,
 }
 
 function TearoomScene({ mood, weather, perspective, activeGesture, tableStyle, occupancy, timeSlot }) {
+  const handHoldingRef = useRef(false);
   return (
     <>
       <SharedLighting mood={mood} intensity={1.18} spotColor="#efd2ad" fogRange={[10, 24]} />
       <TearoomShell />
       <WindowLandscape weather={weather} timeSlot={timeSlot} />
       <WindowRainSheet visible={weather === "rain"} />
-      <RectTeaTable3D activeGesture={activeGesture} tableStyle={tableStyle} />
+      <RectTeaTable3D activeGesture={activeGesture} tableStyle={tableStyle} handHoldingRef={handHoldingRef} />
       <SilhouetteGuests perspective={perspective} sceneId="tearoom" occupancy={occupancy} />
-      {perspective === "firstPerson" && <FirstPersonHands activeGesture={activeGesture} />}
+      {perspective === "firstPerson" && <FirstPersonHands activeGesture={activeGesture} handHoldingRef={handHoldingRef} />}
       <RainParticles visible={weather === "rain"} area={[6.5, 4.6, 3.2]} size={0.026} opacity={0.34} />
       <FloatingMotes color="#f4e2cb" count={180} area={[7.2, 3.2, 4.5]} speed={0.1} size={0.038} />
     </>
