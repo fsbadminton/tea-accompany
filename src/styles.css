@@ -2,7 +2,7 @@
   font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
   color: #f3eee6;
   background: #12100d;
-  --panel-bg: rgba(22, 18, 15, 0.42);
+  --panel-bg: rgba(22, 18, 15, 0.28);
   --panel-border: rgba(247, 237, 223, 0.14);
   --panel-shadow: 0 0.5rem 0.8rem rgba(0, 0, 0, 0.18);
   --text-soft: rgba(243, 238, 230, 0.76);
@@ -215,7 +215,7 @@ select option {
 .chip-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.55rem;
+  gap: 0.35rem;
 }
 
 .scene-tags {
@@ -243,8 +243,8 @@ select option {
   left: 1.3rem;
   right: 1.3rem;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 0.8rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.6rem;
 }
 
 .select-field,
@@ -259,8 +259,9 @@ select option {
 .select-field {
   display: flex;
   flex-direction: column;
-  padding: 0.78rem 0.9rem;
-  border-radius: 1.3rem;
+  padding: 0.42rem 0.6rem;
+  border-radius: 0.9rem;
+  font-size: 0.78rem;
 }
 
 .select-field select {
@@ -277,19 +278,19 @@ select option {
 .ambient-info {
   left: 1.3rem;
   bottom: 1.5rem;
-  max-width: 21rem;
-  padding: 1.05rem 1.15rem;
-  border-radius: 1.35rem;
+  max-width: 17rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 1rem;
 }
 
 .ambient-info h2 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1rem;
   font-weight: 500;
 }
 
 .ambient-summary {
-  margin-top: 0.4rem;
+  margin-top: 0.25rem;
 }
 
 .accent-list {
@@ -299,19 +300,20 @@ select option {
 .control-dock {
   right: 1.3rem;
   bottom: 1.5rem;
-  width: min(24rem, calc(100vw - 2.6rem));
+  width: min(200px, calc(100vw - 2.6rem));
   display: grid;
-  gap: 0.85rem;
+  gap: 0.6rem;
 }
 
 .dock-card {
-  padding: 1rem 1rem 1.05rem;
-  border-radius: 1.35rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 1rem;
 }
 
 .dock-hint {
-  font-size: 0.88rem;
+  font-size: 0.7rem;
   color: rgba(243, 238, 230, 0.62);
+  margin: 0.2rem 0 0;
 }
 
 .chip,
@@ -320,7 +322,8 @@ select option {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.03);
   color: #f3eee6;
-  padding: 0.62rem 0.92rem;
+  padding: 0.38rem 0.65rem;
+  font-size: 0.72rem;
   cursor: pointer;
   transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
 }
@@ -336,6 +339,18 @@ select option {
   background: rgba(255, 255, 255, 0.11);
 }
 
+.chip-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+}
+
+.chip-grid-2 .chip {
+  text-align: center;
+  padding: 0.32rem 0.4rem;
+  font-size: 0.7rem;
+}
+
 @media (max-width: 1100px) {
   .main-stage {
     grid-template-columns: 1fr;
@@ -343,7 +358,7 @@ select option {
   }
 
   .top-bar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .stage-copy {
@@ -395,10 +410,10 @@ select option {
 
 /* Ambient mood quote */
 .ambient-quote {
-  margin: 0.5rem 0 0;
-  font-size: 0.88rem;
+  margin: 0.3rem 0 0;
+  font-size: 0.78rem;
   color: rgba(243, 238, 230, 0.62);
-  line-height: 1.65;
+  line-height: 1.55;
   font-style: italic;
 }
 
@@ -579,13 +594,13 @@ select option {
 .select-field::after {
   content: "";
   position: absolute;
-  right: 0.9rem;
-  bottom: 1rem;
+  right: 0.6rem;
+  bottom: 0.7rem;
   width: 0;
   height: 0;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 5px solid rgba(243, 238, 230, 0.45);
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  border-top: 4px solid rgba(243, 238, 230, 0.45);
   pointer-events: none;
 }
 
@@ -599,18 +614,18 @@ select option {
 
 @media (max-width: 720px) {
   .select-field {
-    padding: 1rem 0.9rem;
-    min-height: 3rem;
+    padding: 0.55rem 0.7rem;
+    min-height: 2.2rem;
   }
 
   .select-field select {
-    font-size: 1rem;
-    min-height: 1.6rem;
+    font-size: 0.85rem;
+    min-height: 1.2rem;
   }
 
   .chip, .toggle-button {
-    padding: 0.72rem 1.05rem;
-    font-size: 0.92rem;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.75rem;
   }
 
   .immersive-toggle {
@@ -627,7 +642,7 @@ select option {
 
 @media (max-width: 480px) {
   .select-field {
-    padding: 0.85rem 0.75rem;
+    padding: 0.45rem 0.6rem;
   }
 
   .control-dock {
@@ -660,9 +675,9 @@ select option {
 
 /* Ceremony Timeline */
 .ceremony-timeline {
-  max-height: 300px;
+  max-height: 220px;
   overflow-y: auto;
-  padding: 0.4rem 0;
+  padding: 0.25rem 0;
   scrollbar-width: thin;
   scrollbar-color: rgba(247, 237, 223, 0.15) transparent;
 }
@@ -670,9 +685,9 @@ select option {
 .ceremony-step {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.35rem 0.5rem;
-  border-radius: 8px;
+  gap: 0.45rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: 6px;
   cursor: pointer;
   transition: background 180ms ease;
 }
@@ -682,8 +697,8 @@ select option {
 }
 
 .step-dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   border: 1.5px solid rgba(247, 237, 223, 0.3);
   flex-shrink: 0;
@@ -708,7 +723,7 @@ select option {
 }
 
 .step-label {
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   color: var(--text-soft);
   transition: color 200ms ease;
 }
@@ -732,18 +747,18 @@ select option {
 /* Ceremony Controls */
 .ceremony-controls {
   display: flex;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
 }
 
 .ceremony-btn {
   flex: 1;
-  padding: 0.55rem 0.8rem;
+  padding: 0.38rem 0.55rem;
   border: 1px solid rgba(247, 237, 223, 0.18);
   border-radius: 8px;
   background: rgba(212, 184, 150, 0.12);
   color: #f3eee6;
-  font-size: 0.82rem;
+  font-size: 0.72rem;
   cursor: pointer;
   transition: all 180ms ease;
 }

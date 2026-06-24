@@ -26,18 +26,10 @@ export function TopBar(props) {
       />
 
       <SelectField
-        label="时间模式"
-        value={props.timeMode}
-        onChange={props.onTimeModeChange}
-        options={CONTROL_OPTIONS.timeModes}
-      />
-
-      <SelectField
         label="时间"
         value={props.manualTime}
         onChange={props.onManualTimeChange}
         options={CONTROL_OPTIONS.timeSlots}
-        disabled={props.timeMode === "auto"}
       />
 
       <SelectField
@@ -55,7 +47,7 @@ export function TopBar(props) {
       />
 
       <SelectField
-        label="看法"
+        label="视角"
         value={props.perspective}
         onChange={props.onPerspectiveChange}
         options={CONTROL_OPTIONS.perspectives}

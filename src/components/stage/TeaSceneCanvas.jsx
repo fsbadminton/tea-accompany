@@ -45,17 +45,17 @@ function TeaFilter({ position = [0, 0, 0] }) {
   return (
     <group position={position}>
       {/* Funnel top - inverted cone */}
-      <mesh position={[0, 0.06, 0]} rotation={[Math.PI, 0, 0]}>
+      <mesh position={[0, 0.06, 0]} rotation={[Math.PI, 0, 0]} castShadow>
         <coneGeometry args={[0.05, 0.08, 16]} />
         <meshStandardMaterial color="#b8b8b8" roughness={0.3} metalness={0.4} />
       </mesh>
       {/* Small cylinder base */}
-      <mesh position={[0, -0.02, 0]}>
+      <mesh position={[0, -0.02, 0]} castShadow>
         <cylinderGeometry args={[0.015, 0.02, 0.04, 12]} />
         <meshStandardMaterial color="#b8b8b8" roughness={0.3} metalness={0.4} />
       </mesh>
       {/* Small saucer plate */}
-      <mesh position={[0.08, -0.03, 0]}>
+      <mesh position={[0.08, -0.03, 0]} castShadow>
         <cylinderGeometry args={[0.045, 0.05, 0.012, 16]} />
         <meshStandardMaterial color="#b0b0b0" roughness={0.28} metalness={0.35} />
       </mesh>
@@ -67,7 +67,7 @@ function WasteBowl({ position = [0, 0, 0] }) {
   return (
     <group position={position}>
       {/* Bowl body */}
-      <mesh position={[0, 0.04, 0]}>
+      <mesh position={[0, 0.04, 0]} castShadow>
         <cylinderGeometry args={[0.09, 0.055, 0.08, 20]} />
         <meshStandardMaterial color="#3a5a58" roughness={0.4} />
       </mesh>
@@ -84,7 +84,7 @@ function TeaCloth({ position = [0, 0, 0] }) {
   return (
     <group position={position}>
       {/* Main cloth body */}
-      <mesh position={[0, 0.012, 0]}>
+      <mesh position={[0, 0.012, 0]} castShadow>
         <boxGeometry args={[0.14, 0.015, 0.1]} />
         <meshStandardMaterial color="#e8e0d0" roughness={0.9} />
       </mesh>
@@ -106,7 +106,7 @@ function TeaPet({ position = [0, 0, 0] }) {
   return (
     <group position={position}>
       {/* Body - flattened sphere */}
-      <mesh position={[0, 0.025, 0]} scale={[1.1, 0.65, 0.95]}>
+      <mesh position={[0, 0.025, 0]} scale={[1.1, 0.65, 0.95]} castShadow>
         <sphereGeometry args={[0.04, 14, 12]} />
         <meshStandardMaterial color="#a07848" roughness={0.7} />
       </mesh>
@@ -236,7 +236,7 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
         const easeSmell = 1 - Math.pow(1 - smellRef.current, 3);
         const easeServeGuest = 1 - Math.pow(1 - serveGuestRef.current, 3);
         const easeServe = 1 - Math.pow(1 - serveRef.current, 3);
-        cupRef.current.position.y = 0.54 + easeSmell * 0.3 + easeServeGuest * 0.05;
+        cupRef.current.position.y = 0.565 + easeSmell * 0.3 + easeServeGuest * 0.05;
         cupRef.current.position.z = 0.08 + easeServe * 0.15;
         const floatVal = serveGuestRef.current * Math.sin(state.clock.elapsedTime * 1.5) * 0.02;
         cupRef.current.position.y += easeServeGuest * 0.4 + floatVal;
@@ -302,14 +302,14 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
         </mesh>
 
         {/* Tray */}
-        <mesh position={[0, 0.49, 0]}>
+        <mesh position={[0, 0.49, 0]} castShadow receiveShadow>
           <boxGeometry args={[1.1, 0.06, 0.7]} />
           <meshStandardMaterial color={tray} roughness={0.72} />
         </mesh>
 
         {/* Gaiwan */}
-        <group ref={gaiwanRef} position={[-0.1, 0.6, -0.02]}>
-          <mesh>
+        <group ref={gaiwanRef} position={[-0.1, 0.62, -0.02]}>
+          <mesh castShadow>
             <cylinderGeometry args={[0.16, 0.2, 0.2, 24]} />
             <meshStandardMaterial color="#f8f2ea" roughness={0.2} />
           </mesh>
@@ -322,7 +322,7 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
         <TeaPourParticles position={[0.1, 0.65, -0.02]} active={isPouring} count={35} direction={[0.55, 0.15, 0.05]} />
 
         {/* Fairness cup (公道杯) */}
-        <mesh position={[0.3, 0.57, 0]}>
+        <mesh position={[0.3, 0.60, 0]} castShadow>
           <cylinderGeometry args={[0.08, 0.1, 0.16, 24]} />
           <meshStandardMaterial color="#f8f2ea" roughness={0.18} />
         </mesh>
@@ -331,10 +331,10 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
         {/* Cup 0 - 品茗杯 */}
         <group
           ref={cupRef}
-          position={[-0.45, 0.54, 0.08]}
+          position={[-0.45, 0.565, 0.08]}
           onClick={(e) => { e.stopPropagation(); handleCupClick(0); }}
         >
-          <mesh rotation={[Math.PI, 0, 0]}>
+          <mesh rotation={[Math.PI, 0, 0]} castShadow>
             <cylinderGeometry args={[0.07, 0.08, 0.09, 20]} />
             <meshStandardMaterial color="#f8f2ea" roughness={0.18} />
           </mesh>
@@ -359,10 +359,10 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
         {tableStyle === "full" && (
           <group
             ref={cup1Ref}
-            position={[0.02, 0.54, 0.18]}
+            position={[0.02, 0.565, 0.18]}
             onClick={(e) => { e.stopPropagation(); handleCupClick(1); }}
           >
-            <mesh rotation={[Math.PI, 0, 0]}>
+            <mesh rotation={[Math.PI, 0, 0]} castShadow>
               <cylinderGeometry args={[0.07, 0.08, 0.09, 20]} />
               <meshStandardMaterial color="#f8f2ea" roughness={0.18} />
             </mesh>
@@ -383,10 +383,10 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
         )}
 
         {/* Additional tea utensils */}
-        <TeaFilter position={[0.18, 0.55, -0.02]} />
+        <TeaFilter position={[0.18, 0.556, -0.02]} />
         <WasteBowl position={[-0.42, 0.52, -0.28]} />
-        <TeaCloth position={[0.42, 0.51, 0.28]} />
-        <TeaPet position={[-0.45, 0.53, 0.25]} />
+        <TeaCloth position={[0.42, 0.515, 0.28]} />
+        <TeaPet position={[-0.45, 0.521, 0.25]} />
       </group>
     </Float>
   );
@@ -1138,9 +1138,10 @@ function TearoomShell() {
 
   return (
     <group>
+      {/* Back wall sections (around window opening) — widened to cover FOV edges */}
       {[
-        { position: [0, 3.76, -3.05], size: [8.4, 0.5, 0.24] },
-        { position: [0, 0.18, -3.05], size: [8.4, 0.72, 0.24] },
+        { position: [0, 3.76, -3.05], size: [12, 0.5, 0.24] },
+        { position: [0, 0.18, -3.05], size: [12, 0.72, 0.24] },
         { position: [-3.76, 1.96, -3.05], size: [0.88, 3.28, 0.24] },
         { position: [3.76, 1.96, -3.05], size: [0.88, 3.28, 0.24] },
       ].map((part, index) => (
@@ -1149,21 +1150,34 @@ function TearoomShell() {
           <meshStandardMaterial color={wall} roughness={0.88} />
         </mesh>
       ))}
-      <mesh position={[0, -0.36, -0.6]} receiveShadow>
-        <boxGeometry args={[8.4, 0.12, 5.6]} />
+      {/* Floor — extended wider and shifted toward camera */}
+      <mesh position={[0, -0.36, 0.2]} receiveShadow>
+        <boxGeometry args={[12, 0.12, 7.2]} />
         <meshStandardMaterial color="#8c6548" roughness={0.88} />
       </mesh>
-      <mesh position={[0, 4, -0.6]} receiveShadow>
-        <boxGeometry args={[8.6, 0.18, 5.8]} />
+      {/* Ceiling — extended wider and shifted toward camera */}
+      <mesh position={[0, 4, 0.2]} receiveShadow>
+        <boxGeometry args={[12.2, 0.18, 7.4]} />
         <meshStandardMaterial color="#523826" roughness={0.86} />
       </mesh>
-      <mesh position={[-4.2, 1.78, -0.55]} receiveShadow>
-        <boxGeometry args={[0.18, 4.1, 5.5]} />
+      {/* Left side wall — moved outward to x=-5.5, extended toward camera */}
+      <mesh position={[-5.5, 1.78, 0.2]} receiveShadow>
+        <boxGeometry args={[0.18, 4.1, 7.1]} />
         <meshStandardMaterial color="#6a4d38" roughness={0.86} />
       </mesh>
-      <mesh position={[4.2, 1.78, -0.55]} receiveShadow>
-        <boxGeometry args={[0.18, 4.1, 5.5]} />
+      {/* Right side wall — moved outward to x=5.5, extended toward camera */}
+      <mesh position={[5.5, 1.78, 0.2]} receiveShadow>
+        <boxGeometry args={[0.18, 4.1, 7.1]} />
         <meshStandardMaterial color="#6a4d38" roughness={0.86} />
+      </mesh>
+      {/* Invisible blocking planes at outer edges as a safety net */}
+      <mesh position={[-6, 1.78, 0.2]} visible={false}>
+        <boxGeometry args={[0.1, 5, 8]} />
+        <meshBasicMaterial color="#000000" />
+      </mesh>
+      <mesh position={[6, 1.78, 0.2]} visible={false}>
+        <boxGeometry args={[0.1, 5, 8]} />
+        <meshBasicMaterial color="#000000" />
       </mesh>
       <WindowFrame3D />
     </group>
@@ -1355,7 +1369,7 @@ function SunMoon({ timeSlot }) {
   );
 }
 
-function MountainShape({ x, y, z, width, height, depth, color, seed = 0 }) {
+function MountainShape({ x, y, z, width, height, depth, color, seed = 0, renderOrder = 0 }) {
   const geometry = useMemo(() => {
     const segments = 48;
     const vertices = [];
@@ -1383,8 +1397,8 @@ function MountainShape({ x, y, z, width, height, depth, color, seed = 0 }) {
   }, [width, height, seed]);
 
   return (
-    <mesh position={[x, y, z]} geometry={geometry}>
-      <meshStandardMaterial color={color} roughness={1} side={THREE.DoubleSide} />
+    <mesh position={[x, y, z]} geometry={geometry} renderOrder={renderOrder}>
+      <meshStandardMaterial color={color} roughness={1} side={THREE.DoubleSide} depthWrite={false} />
     </mesh>
   );
 }
@@ -1397,13 +1411,16 @@ function LayeredMountains({ timeSlot, weather }) {
   return (
     <group>
       {[
-        { x: -4.5, y: 0.3, z: -6.5, width: 5.5, height: 3.2, color: far, seed: 1.2 },
-        { x: 2, y: 0.2, z: -7, width: 6.5, height: 3.8, color: far, seed: 3.7 },
-        { x: 6, y: 0.3, z: -6.2, width: 4.8, height: 2.8, color: far, seed: 5.1 },
-        { x: -3, y: 0.2, z: -5, width: 5.2, height: 2.6, color: mid, seed: 2.4 },
-        { x: 4, y: 0.15, z: -4.8, width: 4.8, height: 2.2, color: mid, seed: 6.3 },
-        { x: -5.5, y: 0.1, z: -3.8, width: 4.2, height: 1.6, color: near, seed: 0.8 },
-        { x: 5.5, y: 0.1, z: -3.6, width: 3.8, height: 1.3, color: near, seed: 7.5 },
+        // Far layer — lowest renderOrder (drawn first, behind everything)
+        { x: -4.5, y: 0.3, z: -7.0, width: 5.5, height: 3.2, color: far, seed: 1.2, renderOrder: 0 },
+        { x: 2, y: 0.2, z: -7.5, width: 6.5, height: 3.8, color: far, seed: 3.7, renderOrder: 0 },
+        { x: 6, y: 0.3, z: -6.8, width: 4.8, height: 2.8, color: far, seed: 5.1, renderOrder: 0 },
+        // Mid layer — offset further from far layer
+        { x: -3, y: 0.2, z: -5.5, width: 5.2, height: 2.6, color: mid, seed: 2.4, renderOrder: 1 },
+        { x: 4, y: 0.15, z: -5.2, width: 4.8, height: 2.2, color: mid, seed: 6.3, renderOrder: 1 },
+        // Near layer — closest to viewer, drawn last
+        { x: -5.5, y: 0.1, z: -3.8, width: 4.2, height: 1.6, color: near, seed: 0.8, renderOrder: 2 },
+        { x: 5.5, y: 0.1, z: -3.5, width: 3.8, height: 1.3, color: near, seed: 7.5, renderOrder: 2 },
       ].map((m, i) => (
         <MountainShape key={i} {...m} />
       ))}
@@ -1648,6 +1665,7 @@ function WindowLandscape({ weather, timeSlot }) {
 
   return (
     <group position={[0, 0, -4.95]}>
+      <fog attach="fog" args={[skyColor, 2.5, 14]} />
       <SkyGradient color={skyColor} />
       <CloudLayer weather={weather} />
       <SunMoon timeSlot={timeSlot} />
@@ -1717,7 +1735,7 @@ function RectTeaTable3D({ activeGesture, tableStyle }) {
           <boxGeometry args={[2.46, 0.1, 0.96]} />
           <meshStandardMaterial color="#c89868" roughness={0.68} />
         </mesh>
-        <mesh position={[0, 0.57, -0.18]}>
+        <mesh position={[0, 0.57, -0.18]} castShadow receiveShadow>
           <boxGeometry args={[2.16, 0.035, 0.72]} />
           <meshStandardMaterial color="#4a3024" roughness={0.75} />
         </mesh>
@@ -1773,17 +1791,17 @@ function TeaSetOnTray({ activeGesture, tableStyle }) {
         if (isBrewing) {
           teapotGroupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 1.8) * 0.06;
           teapotGroupRef.current.rotation.x = Math.cos(state.clock.elapsedTime * 1.26) * 0.035;
-          teapotGroupRef.current.position.y = 0.16;
+          teapotGroupRef.current.position.y = 0.23;
         } else if (pourRef.current > 0) {
           // Lift teapot up and tilt toward fairness cup
           const ease = 1 - Math.pow(1 - pourRef.current, 3);
-          teapotGroupRef.current.position.y = 0.16 + ease * 0.22;
+          teapotGroupRef.current.position.y = 0.23 + ease * 0.22;
           teapotGroupRef.current.rotation.z = ease * 0.52;
           teapotGroupRef.current.rotation.x = ease * -0.12;
         } else {
           teapotGroupRef.current.rotation.z *= 0.92;
           teapotGroupRef.current.rotation.x *= 0.92;
-          teapotGroupRef.current.position.y += (0.16 - teapotGroupRef.current.position.y) * 0.12;
+          teapotGroupRef.current.position.y += (0.23 - teapotGroupRef.current.position.y) * 0.12;
           if (Math.abs(teapotGroupRef.current.rotation.z) < 0.005) teapotGroupRef.current.rotation.z = 0;
           if (Math.abs(teapotGroupRef.current.rotation.x) < 0.005) teapotGroupRef.current.rotation.x = 0;
         }
@@ -1831,7 +1849,7 @@ function TeaSetOnTray({ activeGesture, tableStyle }) {
         const easeSmell = 1 - Math.pow(1 - smellRef.current, 3);
         const easeServeGuest = 1 - Math.pow(1 - serveGuestRef.current, 3);
         const easeServe = 1 - Math.pow(1 - serveRef.current, 3);
-        cup0Ref.current.position.y = 0.07 + easeSmell * 0.3;
+        cup0Ref.current.position.y = 0.08 + easeSmell * 0.3;
         cup0Ref.current.position.z = 0.2 + easeServe * 0.15;
         const floatVal = serveGuestRef.current * Math.sin(state.clock.elapsedTime * 1.5) * 0.02;
         cup0Ref.current.position.y += easeServeGuest * 0.45 + floatVal;
@@ -1913,7 +1931,7 @@ function TeaSetOnTray({ activeGesture, tableStyle }) {
 
   return (
     <group position={[0, 0.58, -0.08]}>
-      <group ref={teapotGroupRef} position={[0.78, 0.16, -0.08]}>
+      <group ref={teapotGroupRef} position={[0.78, 0.23, -0.08]}>
         <mesh castShadow>
           <sphereGeometry args={[0.22, 24, 16]} />
           <meshStandardMaterial color="#5a4a3a" roughness={0.38} />
@@ -1936,12 +1954,12 @@ function TeaSetOnTray({ activeGesture, tableStyle }) {
       </group>
 
       {/* Pour stream — tray level, spout tip position when teapot is fully tilted */}
-      <TeaPourParticles position={[0.30, 0.34, -0.08]} active={isPouring} count={40} direction={[-0.35, 0.1, 0.02]} />
+      <TeaPourParticles position={[0.30, 0.39, -0.08]} active={isPouring} count={40} direction={[-0.35, 0.1, 0.02]} />
 
       {/* Fairness cup (公道杯) - separate ref for tilt animation */}
-      <group ref={fairnessCupRef} position={[-0.05, 0.14, -0.06]}>
+      <group ref={fairnessCupRef} position={[-0.05, 0.15, -0.06]}>
         {/* Cup body - glass transparent */}
-        <mesh>
+        <mesh castShadow>
           <cylinderGeometry args={[0.14, 0.08, 0.28, 24]} />
           <meshPhysicalMaterial
             color="#e8e4dc"
@@ -1981,7 +1999,7 @@ function TeaSetOnTray({ activeGesture, tableStyle }) {
       </group>
 
       {/* 品茗杯 - inverted cups */}
-      {[[-0.72, 0.07, 0.2], [-0.34, 0.07, 0.28], [0.27, 0.07, 0.27], [0.55, 0.07, 0.22]].slice(0, tableStyle === "full" ? 4 : 2).map((position, index) => (
+      {[[-0.72, 0.08, 0.2], [-0.34, 0.08, 0.28], [0.27, 0.08, 0.27], [0.55, 0.08, 0.22]].slice(0, tableStyle === "full" ? 4 : 2).map((position, index) => (
         <group
           key={index}
           ref={cupRefsAll.current[index]}
@@ -2022,10 +2040,10 @@ function TeaSetOnTray({ activeGesture, tableStyle }) {
       ))}
 
       {/* Additional tea utensils */}
-      <TeaFilter position={[0.45, 0.12, -0.08]} />
-      <WasteBowl position={[-1.0, 0.06, -0.38]} />
-      <TeaCloth position={[0.85, 0.05, 0.35]} />
-      <TeaPet position={[-0.9, 0.08, 0.35]} />
+      <TeaFilter position={[0.45, 0.05, -0.08]} />
+      <WasteBowl position={[-1.0, 0.01, -0.38]} />
+      <TeaCloth position={[0.85, 0.005, 0.35]} />
+      <TeaPet position={[-0.9, 0.01, 0.35]} />
     </group>
   );
 }
@@ -2164,7 +2182,7 @@ export function TeaSceneCanvas({ scene, weather, perspective, mood, activeGestur
 
   return (
     <div className="tea-scene-canvas">
-      <Canvas shadows camera={{ position: [0, 1.25, 5.6], fov }} onCreated={handleCreated}>
+      <Canvas shadows gl={{ antialias: true, alpha: false }} camera={{ position: [0, 1.25, 5.6], fov }} onCreated={handleCreated}>
         <CameraRig perspective={perspective} sceneId={scene.id} />
         <SceneContent
           sceneId={scene.id}

@@ -28,6 +28,11 @@ function App() {
   const [activeGesture, setActiveGesture] = useState("pour");
   const [clockTime, setClockTime] = useState(new Date());
   const [sceneTransition, setSceneTransition] = useState(false);
+
+  const handleManualTimeChange = useCallback((newTime) => {
+    setManualTime(newTime);
+    setTimeMode("manual");
+  }, []);
   const [sceneLoaded, setSceneLoaded] = useState(false);
   const [showWelcome, setShowWelcome] = useState(() => {
     try { return !sessionStorage.getItem("tea-welcomed"); } catch { return true; }
@@ -369,14 +374,12 @@ function App() {
       <div className="app-overlay" aria-hidden={immersiveMode}>
         <TopBar
           sceneId={sceneId}
-          timeMode={timeMode}
           manualTime={manualTime}
           weather={weather}
           occupancy={occupancy}
           perspective={perspective}
           onSceneChange={handleSceneChange}
-          onTimeModeChange={setTimeMode}
-          onManualTimeChange={setManualTime}
+          onManualTimeChange={handleManualTimeChange}
           onWeatherChange={setWeather}
           onOccupancyChange={setOccupancy}
           onPerspectiveChange={setPerspective}

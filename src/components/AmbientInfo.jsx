@@ -11,11 +11,6 @@ export function AmbientInfo({ scene, timeSlot, weather, occupancy }) {
       <p className="ambient-summary">
         {LABELS.timeSlot[timeSlot]} / {LABELS.weather[weather]} / {LABELS.occupancy[occupancy]}
       </p>
-      <div className="accent-list">
-        {scene.accents.map((accent) => (
-          <span key={accent}>{accent}</span>
-        ))}
-      </div>
     </section>
   );
 }

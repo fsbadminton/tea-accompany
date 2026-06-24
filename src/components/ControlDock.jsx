@@ -40,7 +40,6 @@ export function ControlDock({
         <button type="button" className="toggle-button" onClick={onAudioToggle}>
           {audioEnabled ? "关闭声音" : "打开声音"}
         </button>
-        <p className="dock-hint">雨声、风声和房间底噪会随场景变化。</p>
       </div>
 
       <div className="dock-card">
@@ -72,8 +71,7 @@ export function ControlDock({
           </>
         ) : (
           <>
-            <p className="dock-title">手势</p>
-            <div className="chip-row">
+            <div className="chip-grid-2">
               {CONTROL_OPTIONS.gestures.map((option) => (
                 <button
                   key={option.value}
@@ -85,7 +83,7 @@ export function ControlDock({
                 </button>
               ))}
             </div>
-            <div className="ceremony-controls" style={{ marginTop: "0.6rem" }}>
+            <div className="ceremony-controls">
               <button
                 type="button"
                 className="ceremony-btn"
