@@ -491,31 +491,34 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
 
     if (isPour) {
       // Pour gesture — hand grips teapot handle (positions in local space, 6x scaled)
-      rightPosTarget.current.set(0.13, 0.13, 0.025);
+      // Teapot handle is at torus local [0.3, 0.02, -0.01], grip point ≈ [0.45, 0.02, -0.01]
+      // Teapot group at [0.78, 0.23, -0.08] in TeaSetOnTray at [0, 0.58, -0.08]
+      // Hand target world ≈ [1.23, 0.83, -0.17] → local ÷ 6 ≈ [0.205, 0.138, -0.028]
+      rightPosTarget.current.set(0.205, 0.15, -0.028);
       leftPosTarget.current.set(-0.31, -0.013, 0.275);
       leftRotTarget.current.set(0.08, 0.2, 0.1);
 
       // Phase-specific wrist rotation and fingers
       switch (pourPhaseRef.current) {
         case 'approach':
-          rightRotTarget.current.set(-0.15, -0.2, 0.0);
+          rightRotTarget.current.set(-0.1, 0.3, 0.0);
           // Fingers open — ready to grab
           ft.rT = 0.3; ft.rI = 0.2; ft.rM = 0.2; ft.rR = 0.2; ft.rP = 0.2;
           break;
         case 'grip':
-          rightRotTarget.current.set(-0.15, -0.2, -0.25);
+          rightRotTarget.current.set(-0.1, 0.3, -0.25);
           // Thumb presses cap button, index/middle/ring grip handle, pinky supports
           ft.rT = 0.85; ft.rI = 0.75; ft.rM = 0.7; ft.rR = 0.65; ft.rP = 0.55;
           break;
         case 'pour':
           // Tilt hand to pour — wrist rotates around Z axis
-          rightRotTarget.current.set(-0.15, -0.2, -0.6);
+          rightRotTarget.current.set(-0.1, 0.3, -0.55);
           // Maintain firm grip during pour
           ft.rT = 0.9; ft.rI = 0.8; ft.rM = 0.75; ft.rR = 0.7; ft.rP = 0.6;
           break;
         case 'release':
           // Return hand to neutral
-          rightRotTarget.current.set(-0.15, -0.2, 0.0);
+          rightRotTarget.current.set(-0.1, 0.3, 0.0);
           // Open fingers
           ft.rT = 0.3; ft.rI = 0.25; ft.rM = 0.2; ft.rR = 0.2; ft.rP = 0.2;
           break;
