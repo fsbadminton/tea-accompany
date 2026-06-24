@@ -459,6 +459,8 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
 
   useFrame((state, delta) => {
     try {
+    // Debug: confirm useFrame runs
+    if (!state.__handLogged) { state.__handLogged = true; console.log('[Hand] useFrame running'); }
     const t = state.clock.elapsedTime;
     const showHands = ["pour", "distribute", "flipCup", "smell", "serve", "serveGuest"].includes(activeGesture);
     const isPour = activeGesture === "pour";
@@ -694,7 +696,7 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
     animateFinger(lRingRef, ft.lR);
     animateFinger(lPinkyRef, ft.lP);
 
-    } catch (e) { /* prevent animation errors from crashing render loop */ }
+    } catch (e) { console.error('[Hand] useFrame error:', e.message); }
   });
 
   const skin = "#d4b08a";
