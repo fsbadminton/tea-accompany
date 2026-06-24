@@ -2,8 +2,8 @@
   font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
   color: #f3eee6;
   background: #12100d;
-  --panel-bg: rgba(22, 18, 15, 0.28);
-  --panel-border: rgba(247, 237, 223, 0.14);
+  --panel-bg: rgba(255, 255, 255, 0.03);
+  --panel-border: rgba(255, 255, 255, 0.08);
   --panel-shadow: 0 0.5rem 0.8rem rgba(0, 0, 0, 0.18);
   --text-soft: rgba(243, 238, 230, 0.76);
   --ink: rgba(30, 26, 23, 0.88);
@@ -189,8 +189,8 @@ select option {
 .dock-title,
 .select-field span {
   margin: 0 0 0.5rem;
-  font-size: 0.72rem;
-  letter-spacing: 0.18em;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--text-soft);
 }
@@ -199,7 +199,8 @@ select option {
   margin: 0;
   font-size: clamp(2.8rem, 7vw, 5.4rem);
   line-height: 0.98;
-  font-weight: 500;
+  font-weight: 200;
+  letter-spacing: 0.25em;
 }
 
 .scene-description,
@@ -253,7 +254,7 @@ select option {
   border: 1px solid var(--panel-border);
   background: var(--panel-bg);
   box-shadow: var(--panel-shadow);
-  backdrop-filter: blur(16px) saturate(108%);
+  backdrop-filter: blur(20px) saturate(120%);
 }
 
 .select-field {
@@ -262,6 +263,11 @@ select option {
   padding: 0.42rem 0.6rem;
   border-radius: 0.9rem;
   font-size: 0.78rem;
+  background: transparent;
+}
+
+.select-field:hover {
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .select-field select {
@@ -278,8 +284,8 @@ select option {
 .ambient-info {
   left: 1.3rem;
   bottom: 1.5rem;
-  max-width: 17rem;
-  padding: 0.7rem 0.85rem;
+  max-width: 15rem;
+  padding: 0.6rem 0.75rem;
   border-radius: 1rem;
 }
 
@@ -300,13 +306,13 @@ select option {
 .control-dock {
   right: 1.3rem;
   bottom: 1.5rem;
-  width: min(200px, calc(100vw - 2.6rem));
+  width: min(180px, calc(100vw - 2.6rem));
   display: grid;
   gap: 0.6rem;
 }
 
 .dock-card {
-  padding: 0.5rem 0.6rem;
+  padding: 0.4rem 0.5rem;
   border-radius: 1rem;
 }
 
@@ -318,9 +324,9 @@ select option {
 
 .chip,
 .toggle-button {
-  border: 1px solid rgba(245, 235, 223, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.02);
   color: #f3eee6;
   padding: 0.38rem 0.65rem;
   font-size: 0.72rem;
@@ -331,7 +337,7 @@ select option {
 .chip:hover,
 .toggle-button:hover {
   transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .chip.is-active {

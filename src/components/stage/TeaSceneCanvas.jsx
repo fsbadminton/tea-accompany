@@ -393,135 +393,285 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
 }
 
 function FirstPersonHands({ activeGesture }) {
-  const leftRef = useRef(null);
-  const rightRef = useRef(null);
-  const leftTarget = useRef(new THREE.Vector3(-1.85, -0.08, 1.65));
-  const rightTarget = useRef(new THREE.Vector3(1.82, -0.1, 1.72));
-  const leftRotTarget = useRef(new THREE.Euler(0.08, 0.2, 0.1));
+  const leftGroupRef = useRef(null);
+  const rightGroupRef = useRef(null);
+  // Finger joint refs for right hand
+  const rThumbRef = useRef(null);
+  const rIndexRef = useRef(null);
+  const rMiddleRef = useRef(null);
+  const rRingRef = useRef(null);
+  const rPinkyRef = useRef(null);
+  // Finger joint refs for left hand
+  const lThumbRef = useRef(null);
+  const lIndexRef = useRef(null);
+  const lMiddleRef = useRef(null);
+  const lRingRef = useRef(null);
+  const lPinkyRef = useRef(null);
+
+  const entranceRef = useRef(0);
+  const rightPosTarget = useRef(new THREE.Vector3(1.82, -0.1, 1.72));
   const rightRotTarget = useRef(new THREE.Euler(0.1, -0.18, -0.12));
-  const entranceRef = useRef(0); // 0 = hidden below, 1 = fully visible
+  const leftPosTarget = useRef(new THREE.Vector3(-1.85, -0.08, 1.65));
+  const leftRotTarget = useRef(new THREE.Euler(0.08, 0.2, 0.1));
+
+  // Finger curl targets per gesture (0 = straight, 1 = fully curled)
+  const fingerTargets = useRef({ rT: 0.15, rI: 0.15, rM: 0.15, rR: 0.15, rP: 0.15, lT: 0.15, lI: 0.15, lM: 0.15, lR: 0.15, lP: 0.15 });
 
   useFrame((state, delta) => {
     const t = state.clock.elapsedTime;
-
-    // Determine if this gesture shows hands
     const showHands = ["pour", "distribute", "flipCup", "smell", "serve", "serveGuest"].includes(activeGesture);
 
-    // Entrance/exit animation
+    // Entrance
     if (showHands) {
       entranceRef.current = Math.min(entranceRef.current + delta * 2.5, 1);
     } else {
       entranceRef.current = Math.max(entranceRef.current - delta * 2.0, 0);
     }
-
     const ease = 1 - Math.pow(1 - entranceRef.current, 3);
-    const hiddenY = -0.6; // below screen
+    const hiddenY = -0.6;
 
-    // Gesture-specific targets
+    // Gesture targets
+    const ft = fingerTargets.current;
     switch (activeGesture) {
       case "pour":
-        // Right hand extends forward-right to hold teapot, left hand natural
-        leftTarget.current.set(-1.85, -0.08, 1.65);
-        rightTarget.current.set(1.52, 0.02, 1.52);
+        rightPosTarget.current.set(0.78, 0.35, 0.92);
+        rightRotTarget.current.set(-0.2, -0.4, -0.3);
+        leftPosTarget.current.set(-1.85, -0.08, 1.65);
         leftRotTarget.current.set(0.08, 0.2, 0.1);
-        rightRotTarget.current.set(-0.15, -0.35, -0.25);
-        break;
-      case "distribute":
-        // Right hand extends forward to pour from fairness cup
-        leftTarget.current.set(-1.85, -0.08, 1.65);
-        rightTarget.current.set(1.82, 0.0, 1.42);
-        leftRotTarget.current.set(0.08, 0.2, 0.1);
-        rightRotTarget.current.set(0.05, -0.1, -0.08);
+        // Thumb on lid, fingers wrapped around handle
+        ft.rT = 0.8; ft.rI = 0.7; ft.rM = 0.65; ft.rR = 0.6; ft.rP = 0.55;
+        ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
         break;
       case "flipCup":
-        // Both hands forward, fingers pinching
-        leftTarget.current.set(-1.65, -0.03, 1.45);
-        rightTarget.current.set(1.62, -0.03, 1.52);
-        leftRotTarget.current.set(0.15, 0.35, 0.2);
-        rightRotTarget.current.set(0.15, -0.35, -0.2);
+        rightPosTarget.current.set(0.15, 0.18, 1.05);
+        rightRotTarget.current.set(0.1, -0.05, -0.1);
+        leftPosTarget.current.set(-0.15, 0.18, 1.05);
+        leftRotTarget.current.set(0.1, 0.05, 0.1);
+        // Three-finger pinch (thumb, index, middle curled, ring/pinky straight)
+        ft.rT = 0.9; ft.rI = 0.85; ft.rM = 0.8; ft.rR = 0.1; ft.rP = 0.1;
+        ft.lT = 0.9; ft.lI = 0.85; ft.lM = 0.8; ft.lR = 0.1; ft.lP = 0.1;
+        break;
+      case "distribute":
+        rightPosTarget.current.set(-0.05, 0.28, 0.85);
+        rightRotTarget.current.set(-0.15, 0.0, -0.15);
+        leftPosTarget.current.set(-1.85, -0.08, 1.65);
+        leftRotTarget.current.set(0.08, 0.2, 0.1);
+        // Holding fairness cup — fingers wrap around
+        ft.rT = 0.6; ft.rI = 0.55; ft.rM = 0.5; ft.rR = 0.45; ft.rP = 0.4;
+        ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
         break;
       case "smell":
-        // Right hand raises cup to nose level
-        leftTarget.current.set(-1.85, -0.08, 1.65);
-        rightTarget.current.set(0.0, 0.18, 1.1);
+        rightPosTarget.current.set(0.0, 0.35, 0.75);
+        rightRotTarget.current.set(-0.4, 0.0, 0.0);
+        leftPosTarget.current.set(-1.85, -0.08, 1.65);
         leftRotTarget.current.set(0.08, 0.2, 0.1);
-        rightRotTarget.current.set(-0.3, 0.0, 0.0);
+        // Cup held near face — gentle hold
+        ft.rT = 0.5; ft.rI = 0.45; ft.rM = 0.4; ft.rR = 0.35; ft.rP = 0.3;
+        ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
         break;
       case "serve":
-        // Right hand extends forward with cup
-        leftTarget.current.set(-1.85, -0.08, 1.65);
-        rightTarget.current.set(0.2, 0.05, 1.2);
+        rightPosTarget.current.set(0.0, 0.22, 0.9);
+        rightRotTarget.current.set(0.05, 0.0, -0.05);
+        leftPosTarget.current.set(-1.85, -0.08, 1.65);
         leftRotTarget.current.set(0.08, 0.2, 0.1);
-        rightRotTarget.current.set(0.1, -0.05, -0.05);
+        // Holding cup flat
+        ft.rT = 0.45; ft.rI = 0.4; ft.rM = 0.35; ft.rR = 0.3; ft.rP = 0.25;
+        ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
         break;
       case "serveGuest":
-        // Right hand extends far forward, offering
-        leftTarget.current.set(-1.85, -0.08, 1.65);
-        rightTarget.current.set(0.0, 0.12, 0.85);
-        leftRotTarget.current.set(0.08, 0.2, 0.1);
-        rightRotTarget.current.set(-0.2, 0.0, 0.0);
+        rightPosTarget.current.set(0.0, 0.28, 0.55);
+        rightRotTarget.current.set(-0.25, 0.0, 0.0);
+        leftPosTarget.current.set(0.0, 0.25, 0.6);
+        leftRotTarget.current.set(-0.2, 0.0, 0.0);
+        // Both hands offering — gentle open hold
+        ft.rT = 0.4; ft.rI = 0.35; ft.rM = 0.3; ft.rR = 0.25; ft.rP = 0.2;
+        ft.lT = 0.4; ft.lI = 0.35; ft.lM = 0.3; ft.lR = 0.25; ft.lP = 0.2;
         break;
       default:
-        // brew or idle: hands at rest
-        leftTarget.current.set(-1.85, -0.08, 1.65);
-        rightTarget.current.set(1.82, -0.1, 1.72);
-        leftRotTarget.current.set(0.08, 0.2, 0.1);
+        rightPosTarget.current.set(1.82, -0.1, 1.72);
         rightRotTarget.current.set(0.1, -0.18, -0.12);
+        leftPosTarget.current.set(-1.85, -0.08, 1.65);
+        leftRotTarget.current.set(0.08, 0.2, 0.1);
+        ft.rT = 0.15; ft.rI = 0.15; ft.rM = 0.15; ft.rR = 0.15; ft.rP = 0.15;
+        ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
     }
 
-    // Apply entrance offset — hands slide up from below
     const entranceOffset = (1 - ease) * hiddenY;
+    const lerpSpeed = delta * 3.5;
 
-    // Lerp left hand
-    if (leftRef.current) {
-      leftRef.current.position.lerp(leftTarget.current, delta * 3.5);
-      leftRef.current.position.y += entranceOffset;
-      leftRef.current.rotation.x += (leftRotTarget.current.x - leftRef.current.rotation.x) * delta * 3;
-      leftRef.current.rotation.y += (leftRotTarget.current.y - leftRef.current.rotation.y) * delta * 3;
-      leftRef.current.rotation.z += (leftRotTarget.current.z - leftRef.current.rotation.z) * delta * 3;
-      // Breathing idle
-      leftRef.current.position.x += Math.sin(t * 0.8) * 0.008;
-      leftRef.current.position.y += Math.cos(t * 1.1) * 0.005;
+    // Animate right hand position/rotation
+    if (rightGroupRef.current) {
+      rightGroupRef.current.position.lerp(rightPosTarget.current, lerpSpeed);
+      rightGroupRef.current.position.y += entranceOffset;
+      rightGroupRef.current.rotation.x += (rightRotTarget.current.x - rightGroupRef.current.rotation.x) * lerpSpeed;
+      rightGroupRef.current.rotation.y += (rightRotTarget.current.y - rightGroupRef.current.rotation.y) * lerpSpeed;
+      rightGroupRef.current.rotation.z += (rightRotTarget.current.z - rightGroupRef.current.rotation.z) * lerpSpeed;
+      rightGroupRef.current.position.x += Math.sin(t * 0.9 + 0.5) * 0.006;
+      rightGroupRef.current.position.y += Math.cos(t * 1.2 + 0.3) * 0.004;
     }
 
-    // Lerp right hand
-    if (rightRef.current) {
-      rightRef.current.position.lerp(rightTarget.current, delta * 3.5);
-      rightRef.current.position.y += entranceOffset;
-      rightRef.current.rotation.x += (rightRotTarget.current.x - rightRef.current.rotation.x) * delta * 3;
-      rightRef.current.rotation.y += (rightRotTarget.current.y - rightRef.current.rotation.y) * delta * 3;
-      rightRef.current.rotation.z += (rightRotTarget.current.z - rightRef.current.rotation.z) * delta * 3;
-      // Breathing idle
-      rightRef.current.position.x += Math.sin(t * 0.9 + 0.5) * 0.008;
-      rightRef.current.position.y += Math.cos(t * 1.2 + 0.3) * 0.005;
+    // Animate left hand position/rotation
+    if (leftGroupRef.current) {
+      leftGroupRef.current.position.lerp(leftPosTarget.current, lerpSpeed);
+      leftGroupRef.current.position.y += entranceOffset;
+      leftGroupRef.current.rotation.x += (leftRotTarget.current.x - leftGroupRef.current.rotation.x) * lerpSpeed;
+      leftGroupRef.current.rotation.y += (leftRotTarget.current.y - leftGroupRef.current.rotation.y) * lerpSpeed;
+      leftGroupRef.current.rotation.z += (leftRotTarget.current.z - leftGroupRef.current.rotation.z) * lerpSpeed;
+      leftGroupRef.current.position.x += Math.sin(t * 0.8) * 0.006;
+      leftGroupRef.current.position.y += Math.cos(t * 1.1) * 0.004;
     }
+
+    // Animate finger curls (lerp toward target)
+    const fLerp = delta * 5;
+    const animateFinger = (ref, target) => {
+      if (ref.current) ref.current.rotation.x += (target - ref.current.rotation.x) * fLerp;
+    };
+    animateFinger(rThumbRef, ft.rT);
+    animateFinger(rIndexRef, ft.rI);
+    animateFinger(rMiddleRef, ft.rM);
+    animateFinger(rRingRef, ft.rR);
+    animateFinger(rPinkyRef, ft.rP);
+    animateFinger(lThumbRef, ft.lT);
+    animateFinger(lIndexRef, ft.lI);
+    animateFinger(lMiddleRef, ft.lM);
+    animateFinger(lRingRef, ft.lR);
+    animateFinger(lPinkyRef, ft.lP);
   });
+
+  const skin = "#d4b08a";
+  const skinDark = "#c49a78";
+  const nail = "#e8c8b0";
+
+  // Helper: renders a hand with 5 fingers
+  const renderHand = (thumbRef, indexRef, middleRef, ringRef, pinkyRef, mirror) => {
+    const m = mirror ? -1 : 1;
+    return (
+      <>
+        {/* Palm */}
+        <mesh position={[0, 0, 0]}>
+          <boxGeometry args={[0.075, 0.035, 0.09]} />
+          <meshStandardMaterial color={skin} roughness={0.55} />
+        </mesh>
+        {/* Wrist */}
+        <mesh position={[0, 0, 0.065]}>
+          <capsuleGeometry args={[0.022, 0.04, 6, 12]} />
+          <meshStandardMaterial color={skin} roughness={0.55} />
+        </mesh>
+        {/* Thumb — offset to side, 2 joints */}
+        <group ref={thumbRef} position={[m * 0.042, 0.005, 0.01]}>
+          <mesh position={[m * 0.02, -0.005, 0]} rotation={[0, 0, m * 0.3]}>
+            <capsuleGeometry args={[0.011, 0.032, 4, 8]} />
+            <meshStandardMaterial color={skin} roughness={0.55} />
+          </mesh>
+          <group position={[m * 0.038, -0.015, 0]} rotation={[0, 0, m * 0.5]}>
+            <mesh>
+              <capsuleGeometry args={[0.009, 0.025, 4, 8]} />
+              <meshStandardMaterial color={skin} roughness={0.55} />
+            </mesh>
+            {/* Fingernail */}
+            <mesh position={[0, -0.02, 0.003]}>
+              <boxGeometry args={[0.012, 0.008, 0.004]} />
+              <meshStandardMaterial color={nail} roughness={0.3} />
+            </mesh>
+          </group>
+        </group>
+        {/* Index finger — 3 joints */}
+        <group ref={indexRef} position={[m * 0.022, 0.012, -0.045]}>
+          <mesh position={[0, 0, -0.022]}>
+            <capsuleGeometry args={[0.008, 0.035, 4, 8]} />
+            <meshStandardMaterial color={skin} roughness={0.55} />
+          </mesh>
+          <group position={[0, 0, -0.048]}>
+            <mesh position={[0, 0, -0.016]}>
+              <capsuleGeometry args={[0.007, 0.025, 4, 8]} />
+              <meshStandardMaterial color={skin} roughness={0.55} />
+            </mesh>
+            <group position={[0, 0, -0.035]}>
+              <mesh>
+                <capsuleGeometry args={[0.006, 0.018, 4, 8]} />
+                <meshStandardMaterial color={skin} roughness={0.55} />
+              </mesh>
+              <mesh position={[0, 0.003, -0.012]}>
+                <boxGeometry args={[0.01, 0.007, 0.004]} />
+                <meshStandardMaterial color={nail} roughness={0.3} />
+              </mesh>
+            </group>
+          </group>
+        </group>
+        {/* Middle finger — slightly longer */}
+        <group ref={middleRef} position={[m * 0.006, 0.014, -0.045]}>
+          <mesh position={[0, 0, -0.024]}>
+            <capsuleGeometry args={[0.008, 0.038, 4, 8]} />
+            <meshStandardMaterial color={skin} roughness={0.55} />
+          </mesh>
+          <group position={[0, 0, -0.052]}>
+            <mesh position={[0, 0, -0.018]}>
+              <capsuleGeometry args={[0.007, 0.028, 4, 8]} />
+              <meshStandardMaterial color={skin} roughness={0.55} />
+            </mesh>
+            <group position={[0, 0, -0.038]}>
+              <mesh>
+                <capsuleGeometry args={[0.006, 0.02, 4, 8]} />
+                <meshStandardMaterial color={skin} roughness={0.55} />
+              </mesh>
+              <mesh position={[0, 0.003, -0.013]}>
+                <boxGeometry args={[0.01, 0.007, 0.004]} />
+                <meshStandardMaterial color={nail} roughness={0.3} />
+              </mesh>
+            </group>
+          </group>
+        </group>
+        {/* Ring finger */}
+        <group ref={ringRef} position={[m * -0.008, 0.012, -0.043]}>
+          <mesh position={[0, 0, -0.02]}>
+            <capsuleGeometry args={[0.007, 0.032, 4, 8]} />
+            <meshStandardMaterial color={skin} roughness={0.55} />
+          </mesh>
+          <group position={[0, 0, -0.044]}>
+            <mesh position={[0, 0, -0.014]}>
+              <capsuleGeometry args={[0.006, 0.022, 4, 8]} />
+              <meshStandardMaterial color={skin} roughness={0.55} />
+            </mesh>
+            <group position={[0, 0, -0.03]}>
+              <mesh>
+                <capsuleGeometry args={[0.0055, 0.016, 4, 8]} />
+                <meshStandardMaterial color={skin} roughness={0.55} />
+              </mesh>
+              <mesh position={[0, 0.003, -0.01]}>
+                <boxGeometry args={[0.009, 0.006, 0.004]} />
+                <meshStandardMaterial color={nail} roughness={0.3} />
+              </mesh>
+            </group>
+          </group>
+        </group>
+        {/* Pinky — shortest */}
+        <group ref={pinkyRef} position={[m * -0.022, 0.01, -0.04]}>
+          <mesh position={[0, 0, -0.016]}>
+            <capsuleGeometry args={[0.006, 0.025, 4, 8]} />
+            <meshStandardMaterial color={skin} roughness={0.55} />
+          </mesh>
+          <group position={[0, 0, -0.034]}>
+            <mesh>
+              <capsuleGeometry args={[0.005, 0.018, 4, 8]} />
+              <meshStandardMaterial color={skin} roughness={0.55} />
+            </mesh>
+            <mesh position={[0, 0.002, -0.01]}>
+              <boxGeometry args={[0.008, 0.005, 0.003]} />
+              <meshStandardMaterial color={nail} roughness={0.3} />
+            </mesh>
+          </group>
+        </group>
+      </>
+    );
+  };
 
   return (
     <group>
-      {/* Left hand */}
-      <group ref={leftRef} position={[-1.85, -0.08, 1.65]}>
-        <mesh>
-          <capsuleGeometry args={[0.04, 0.12, 6, 12]} />
-          <meshStandardMaterial color="#d4b08a" roughness={0.6} />
-        </mesh>
-        {/* Fingers hint */}
-        <mesh position={[0.02, -0.09, 0.03]} rotation={[0.3, 0, 0]}>
-          <capsuleGeometry args={[0.015, 0.06, 4, 8]} />
-          <meshStandardMaterial color="#d4b08a" roughness={0.6} />
-        </mesh>
+      <group ref={rightGroupRef} position={[1.82, -0.1, 1.72]}>
+        {renderHand(rThumbRef, rIndexRef, rMiddleRef, rRingRef, rPinkyRef, false)}
       </group>
-      {/* Right hand */}
-      <group ref={rightRef} position={[1.82, -0.1, 1.72]}>
-        <mesh>
-          <capsuleGeometry args={[0.04, 0.12, 6, 12]} />
-          <meshStandardMaterial color="#d4b08a" roughness={0.6} />
-        </mesh>
-        {/* Fingers hint */}
-        <mesh position={[-0.02, -0.09, 0.03]} rotation={[0.3, 0, 0]}>
-          <capsuleGeometry args={[0.015, 0.06, 4, 8]} />
-          <meshStandardMaterial color="#d4b08a" roughness={0.6} />
-        </mesh>
+      <group ref={leftGroupRef} position={[-1.85, -0.08, 1.65]}>
+        {renderHand(lThumbRef, lIndexRef, lMiddleRef, lRingRef, lPinkyRef, true)}
       </group>
     </group>
   );
@@ -625,6 +775,12 @@ function SilhouetteGuests({ perspective, sceneId, occupancy }) {
   const seats = SILHOUETTE_LAYOUT[sceneId] ?? SILHOUETTE_LAYOUT.lakeside;
   const count = occupancy === "solo" ? 1 : occupancy === "duo" ? 2 : 3;
 
+  const GUEST_STYLES = [
+    { body: "#2a2018", scale: 1.0 },
+    { body: "#1e2228", scale: 0.95 },
+    { body: "#2c1a1a", scale: 1.05 },
+  ];
+
   return (
     <group>
       {seats.slice(0, count).map((position, index) => {
@@ -632,13 +788,45 @@ function SilhouetteGuests({ perspective, sceneId, occupancy }) {
         const s = style.scale;
         return (
           <group key={index} position={position} scale={[s, s, s]}>
-            <mesh position={[0, 0.5, 0]}>
-              <sphereGeometry args={[0.18, 18, 18]} />
-              <meshStandardMaterial color={style.color} transparent opacity={0.72} />
+            {/* Head */}
+            <mesh position={[0, 0.68, 0]}>
+              <sphereGeometry args={[0.14, 16, 14]} />
+              <meshStandardMaterial color={style.body} transparent opacity={0.72} />
             </mesh>
-            <mesh position={[0, 0.02, 0]}>
-              <capsuleGeometry args={[0.2, 0.52, 6, 12]} />
-              <meshStandardMaterial color={style.color} transparent opacity={0.72} />
+            {/* Torso */}
+            <mesh position={[0, 0.35, 0]}>
+              <boxGeometry args={[0.24, 0.38, 0.16]} />
+              <meshStandardMaterial color={style.body} transparent opacity={0.72} />
+            </mesh>
+            {/* Left upper arm */}
+            <mesh position={[-0.17, 0.48, 0]} rotation={[0, 0, 0.2]}>
+              <capsuleGeometry args={[0.035, 0.16, 4, 8]} />
+              <meshStandardMaterial color={style.body} transparent opacity={0.72} />
+            </mesh>
+            {/* Right upper arm */}
+            <mesh position={[0.17, 0.48, 0]} rotation={[0, 0, -0.2]}>
+              <capsuleGeometry args={[0.035, 0.16, 4, 8]} />
+              <meshStandardMaterial color={style.body} transparent opacity={0.72} />
+            </mesh>
+            {/* Left forearm — resting on table */}
+            <mesh position={[-0.22, 0.32, 0.12]} rotation={[0.8, 0, 0.1]}>
+              <capsuleGeometry args={[0.03, 0.14, 4, 8]} />
+              <meshStandardMaterial color={style.body} transparent opacity={0.72} />
+            </mesh>
+            {/* Right forearm — resting on table */}
+            <mesh position={[0.22, 0.32, 0.12]} rotation={[0.8, 0, -0.1]}>
+              <capsuleGeometry args={[0.03, 0.14, 4, 8]} />
+              <meshStandardMaterial color={style.body} transparent opacity={0.72} />
+            </mesh>
+            {/* Left leg */}
+            <mesh position={[-0.07, 0.08, 0.04]}>
+              <boxGeometry args={[0.09, 0.22, 0.1]} />
+              <meshStandardMaterial color={style.body} transparent opacity={0.65} />
+            </mesh>
+            {/* Right leg */}
+            <mesh position={[0.07, 0.08, 0.04]}>
+              <boxGeometry args={[0.09, 0.22, 0.1]} />
+              <meshStandardMaterial color={style.body} transparent opacity={0.65} />
             </mesh>
           </group>
         );
