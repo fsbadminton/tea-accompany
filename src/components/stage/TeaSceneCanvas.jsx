@@ -481,12 +481,9 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
             }
           });
           if (teapotGroupRef.current) {
-            // Create anchor at handle position in teapot local space
-            // Torus at [0.3, 0.02, -0.01] rotated [0,0,PI/2] → grip at [0.3, 0.17, -0.01]
             const anchor = new THREE.Object3D();
             anchor.position.set(0.3, 0.17, -0.01);
             teapotGroupRef.current.add(anchor);
-            // Force world matrix update so localToWorld works immediately
             teapotGroupRef.current.updateMatrixWorld(true);
             handleAnchorRef.current = anchor;
             anchorReadyRef.current = true;
@@ -500,29 +497,22 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
       try {
         const anchor = handleAnchorRef.current;
         anchor.updateMatrixWorld(true);
-        // Get world position of handle anchor
         anchor.getWorldPosition(_wp);
-        // Anti-clipping: offset away from teapot center by tube radius + margin
         teapotGroupRef.current.getWorldPosition(_awayDir);
         _awayDir.subVectors(_wp, _awayDir).normalize().multiplyScalar(0.055);
         _wp.add(_awayDir);
-        // Log for debugging (first few frames only)
-        if (phaseTimerRef.current < 0.1) {
-          console.log('[Hand] anchor world:', _wp.x.toFixed(3), _wp.y.toFixed(3), _wp.z.toFixed(3));
-        }
-        // Convert to hand-local space (hand is 6x scaled)
         rightGroupRef.current.matrixWorld.copy(_handInv).invert();
         _gripLocal.copy(_wp).applyMatrix4(_handInv);
         rightPosTarget.current.copy(_gripLocal);
-        if (phaseTimerRef.current < 0.1) {
-          console.log('[Hand] grip local:', _gripLocal.x.toFixed(3), _gripLocal.y.toFixed(3), _gripLocal.z.toFixed(3));
-        }
         // Get world rotation of handle anchor for hand orientation
         anchor.getWorldQuaternion(_wq);
       } catch (e) {
-        // Fallback: use hardcoded position if matrix computation fails
+        // Fallback: hardcoded handle grip position
         rightPosTarget.current.set(0.18, 0.17, 0.0);
       }
+    } else if (isPour) {
+      // Anchor not ready yet — use hardcoded position
+      rightPosTarget.current.set(0.18, 0.17, 0.0);
     }
 
     // ─── Pour phase state machine ───
