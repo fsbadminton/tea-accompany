@@ -506,10 +506,17 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
         teapotGroupRef.current.getWorldPosition(_awayDir);
         _awayDir.subVectors(_wp, _awayDir).normalize().multiplyScalar(0.055);
         _wp.add(_awayDir);
+        // Log for debugging (first few frames only)
+        if (phaseTimerRef.current < 0.1) {
+          console.log('[Hand] anchor world:', _wp.x.toFixed(3), _wp.y.toFixed(3), _wp.z.toFixed(3));
+        }
         // Convert to hand-local space (hand is 6x scaled)
         rightGroupRef.current.matrixWorld.copy(_handInv).invert();
         _gripLocal.copy(_wp).applyMatrix4(_handInv);
         rightPosTarget.current.copy(_gripLocal);
+        if (phaseTimerRef.current < 0.1) {
+          console.log('[Hand] grip local:', _gripLocal.x.toFixed(3), _gripLocal.y.toFixed(3), _gripLocal.z.toFixed(3));
+        }
         // Get world rotation of handle anchor for hand orientation
         anchor.getWorldQuaternion(_wq);
       } catch (e) {
