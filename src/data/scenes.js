@@ -347,3 +347,48 @@ export const CEREMONY_CONFIG = {
   transitionDuration: 800, // ms for step transition animation
   skipDependencies: false, // whether to enforce step order
 };
+
+export const GESTURE_UI_CONFIG = {
+  pour: {
+    guestStateLabel: { solo: '', duo: '宾客：正饮', group: '众人品饮' },
+    hidePanelInFirstPerson: true,
+    description: '右手握壶把，食指轻按壶盖，提壶倾倒',
+  },
+  flipCup: {
+    guestStateLabel: { solo: '', duo: '宾客：静候', group: '众人静候' },
+    hidePanelInFirstPerson: true,
+    description: '三指托杯，轻柔翻转',
+  },
+  distribute: {
+    guestStateLabel: { solo: '', duo: '宾客：正饮', group: '众人品饮' },
+    hidePanelInFirstPerson: true,
+    description: '关公巡城，均匀分茶',
+  },
+  serve: {
+    guestStateLabel: { solo: '', duo: '宾客：正饮', group: '众人品饮' },
+    hidePanelInFirstPerson: true,
+    description: '端起品茗杯，感受温度',
+  },
+  brew: {
+    guestStateLabel: { solo: '', duo: '宾客：静候', group: '众人静候' },
+    hidePanelInFirstPerson: false,
+    description: '悬壶高冲，静候茶香',
+  },
+  smell: {
+    guestStateLabel: { solo: '', duo: '宾客：闻香', group: '众人闻香' },
+    hidePanelInFirstPerson: true,
+    description: '端杯近鼻，感受香气层次',
+  },
+  serveGuest: {
+    guestStateLabel: { solo: '', duo: '宾客：承接', group: '众人承接' },
+    hidePanelInFirstPerson: true,
+    description: '双手奉茶，以礼待客',
+  },
+};
+
+export const PERSPECTIVE_UI_MODE = {
+  firstPerson: { topBarCompact: false, dockAutoHide: true, ambientFull: true },
+  sideView: { topBarCompact: true, dockAutoHide: false, ambientFull: true },
+  orbitView: { topBarCompact: true, dockAutoHide: false, ambientFull: true },
+  topView: { topBarCompact: true, dockAutoHide: false, ambientFull: false },
+};

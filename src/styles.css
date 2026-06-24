@@ -835,3 +835,132 @@ select option {
     display: none;
   }
 }
+
+/* ── Auto-hide control dock in first-person ── */
+.control-dock.is-autohide {
+  opacity: 0;
+  transform: translateX(12px);
+  pointer-events: none;
+  transition: opacity 400ms ease, transform 400ms ease, visibility 400ms ease;
+  visibility: hidden;
+}
+
+.control-dock.is-autohide:hover {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+  visibility: visible;
+}
+
+/* Show dock when mouse approaches right edge */
+.control-dock {
+  transition: opacity 300ms ease, transform 300ms ease, visibility 300ms ease;
+}
+
+/* ── Guest status in AmbientInfo ── */
+.guest-status {
+  margin: 0.35rem 0 0;
+  font-size: 0.7rem;
+  color: rgba(212, 184, 150, 0.8);
+  letter-spacing: 0.05em;
+  padding: 0.2rem 0.5rem;
+  border-left: 2px solid rgba(212, 184, 150, 0.3);
+  background: rgba(212, 184, 150, 0.06);
+  border-radius: 0 4px 4px 0;
+}
+
+/* ── Perspective-based compactness ── */
+.top-bar.is-compact {
+  gap: 0.35rem;
+}
+
+.top-bar.is-compact .select-field {
+  padding: 0.28rem 0.45rem;
+  font-size: 0.7rem;
+}
+
+.top-bar.is-compact .select-field span {
+  font-size: 0.62rem;
+}
+
+.control-dock.is-compact {
+  width: min(160px, calc(100vw - 2.6rem));
+  gap: 0.4rem;
+}
+
+.control-dock.is-compact .dock-card {
+  padding: 0.35rem 0.45rem;
+}
+
+.control-dock.is-compact .dock-title {
+  font-size: 0.65rem;
+  margin-bottom: 0.25rem;
+}
+
+.control-dock.is-compact .chip-grid-2 .chip {
+  padding: 0.25rem 0.35rem;
+  font-size: 0.65rem;
+}
+
+.ambient-info.is-compact {
+  max-width: 14rem;
+  padding: 0.5rem 0.65rem;
+}
+
+.ambient-info.is-compact h2 {
+  font-size: 0.85rem;
+}
+
+/* ── First-person gesture bar (bottom center) ── */
+.gesture-bar-fp {
+  position: fixed;
+  bottom: 1.2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  display: flex;
+  gap: 0.3rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(22, 18, 15, 0.55);
+  border: 1px solid rgba(247, 237, 223, 0.12);
+  backdrop-filter: blur(14px) saturate(108%);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  transition: opacity 300ms ease, transform 300ms ease;
+}
+
+.gesture-bar-fp.is-hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(8px);
+  pointer-events: none;
+}
+
+.gesture-bar-fp .chip {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.68rem;
+  border-radius: 999px;
+}
+
+/* ── Mobile adjustments ── */
+@media (max-width: 720px) {
+  .gesture-bar-fp {
+    bottom: 0.8rem;
+    padding: 0.3rem 0.6rem;
+    gap: 0.2rem;
+  }
+
+  .gesture-bar-fp .chip {
+    padding: 0.22rem 0.4rem;
+    font-size: 0.65rem;
+  }
+
+  .guest-status {
+    font-size: 0.65rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .gesture-bar-fp {
+    display: none;
+  }
+}

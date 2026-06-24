@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { SCENE_CONFIG, WELCOME_QUOTES, CEREMONY_STEPS, GESTURE_DESCRIPTIONS, CEREMONY_CONFIG } from "./data/scenes";
+import { SCENE_CONFIG, WELCOME_QUOTES, CEREMONY_STEPS, GESTURE_DESCRIPTIONS, CEREMONY_CONFIG, GESTURE_UI_CONFIG, PERSPECTIVE_UI_MODE } from "./data/scenes";
 import { MainStage } from "./components/MainStage";
 import { TopBar } from "./components/TopBar";
 import { ControlDock } from "./components/ControlDock";
@@ -41,6 +41,8 @@ function App() {
   const [currentStepIndex, setCurrentStepIndex] = useState(-1);
   const [completedSteps, setCompletedSteps] = useState(new Set());
   const [ceremonyPaused, setCeremonyPaused] = useState(false);
+  const [panelVisible, setPanelVisible] = useState(true);
+  const panelTimerRef = useRef(null);
   const audioRef = useRef(null);
   const audioCtxRef = useRef(null);
   const audioNodesRef = useRef(null);
@@ -166,6 +168,12 @@ function App() {
   const currentGestureFromStep = currentStep?.gesture ?? null;
   // In ceremony mode, use the gesture from the current step; in manual mode, use activeGesture
   const effectiveGesture = ceremonyMode ? currentGestureFromStep : activeGesture;
+
+  const guestStateLabel = useMemo(() => {
+    if (occupancy === 'solo') return '';
+    const config = GESTURE_UI_CONFIG[effectiveGesture];
+    return config?.guestStateLabel?.[occupancy] || '';
+  }, [effectiveGesture, occupancy]);
 
   // Create AudioContext once; only update parameters on scene/weather changes
   useEffect(() => {
@@ -320,6 +328,27 @@ function App() {
     return () => clearTimeout(timer);
   }, [ceremonyMode, ceremonyPaused, currentStepIndex, weather, advanceStep]);
 
+  // Auto-hide control dock in first-person after 3s of no mouse movement
+  useEffect(() => {
+    if (perspective !== 'firstPerson' || immersiveMode) {
+      setPanelVisible(true);
+      return;
+    }
+    const showPanel = () => {
+      setPanelVisible(true);
+      if (panelTimerRef.current) clearTimeout(panelTimerRef.current);
+      panelTimerRef.current = setTimeout(() => setPanelVisible(false), 3000);
+    };
+    showPanel();
+    window.addEventListener('mousemove', showPanel);
+    window.addEventListener('touchstart', showPanel);
+    return () => {
+      window.removeEventListener('mousemove', showPanel);
+      window.removeEventListener('touchstart', showPanel);
+      if (panelTimerRef.current) clearTimeout(panelTimerRef.current);
+    };
+  }, [perspective, immersiveMode]);
+
   const welcomeQuote = useMemo(() => {
     const initialSlot = getTimeSlotFromHour(new Date().getHours());
     const quotes = WELCOME_QUOTES[initialSlot] || WELCOME_QUOTES.day;
@@ -390,6 +419,7 @@ function App() {
           timeSlot={currentTimeSlot}
           weather={weather}
           occupancy={occupancy}
+          guestStateLabel={guestStateLabel}
         />
 
         <ControlDock
@@ -407,6 +437,7 @@ function App() {
           currentStepIndex={currentStepIndex}
           completedSteps={completedSteps}
           onStepClick={handleStepClick}
+          panelVisible={panelVisible}
         />
 
         {currentStep && (

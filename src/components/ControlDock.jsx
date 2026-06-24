@@ -16,9 +16,15 @@ export function ControlDock({
   currentStepIndex,
   completedSteps,
   onStepClick,
+  panelVisible,
 }) {
+  const dockClass = [
+    'control-dock',
+    !panelVisible && 'is-autohide',
+  ].filter(Boolean).join(' ');
+
   return (
-    <aside className="control-dock">
+    <aside className={dockClass}>
       <div className="dock-card">
         <p className="dock-title">茶具摆设</p>
         <div className="chip-row">

@@ -395,90 +395,134 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
 function FirstPersonHands({ activeGesture }) {
   const leftRef = useRef(null);
   const rightRef = useRef(null);
-  const leftTarget = useRef({ x: -1.85, y: -0.08, z: 1.65 });
-  const rightTarget = useRef({ x: 1.82, y: -0.1, z: 1.72 });
+  const leftTarget = useRef(new THREE.Vector3(-1.85, -0.08, 1.65));
+  const rightTarget = useRef(new THREE.Vector3(1.82, -0.1, 1.72));
+  const leftRotTarget = useRef(new THREE.Euler(0.08, 0.2, 0.1));
+  const rightRotTarget = useRef(new THREE.Euler(0.1, -0.18, -0.12));
+  const entranceRef = useRef(0); // 0 = hidden below, 1 = fully visible
 
   useFrame((state, delta) => {
     const t = state.clock.elapsedTime;
-    const lerpFactor = Math.min(delta * 3, 1);
 
-    // Determine target positions based on gesture
+    // Determine if this gesture shows hands
+    const showHands = ["pour", "distribute", "flipCup", "smell", "serve", "serveGuest"].includes(activeGesture);
+
+    // Entrance/exit animation
+    if (showHands) {
+      entranceRef.current = Math.min(entranceRef.current + delta * 2.5, 1);
+    } else {
+      entranceRef.current = Math.max(entranceRef.current - delta * 2.0, 0);
+    }
+
+    const ease = 1 - Math.pow(1 - entranceRef.current, 3);
+    const hiddenY = -0.6; // below screen
+
+    // Gesture-specific targets
     switch (activeGesture) {
       case "pour":
-        // Right hand extends forward-right (holding teapot to pour)
-        rightTarget.current.x = 1.82 + 0.3;
-        rightTarget.current.y = -0.1 + 0.1;
-        rightTarget.current.z = 1.72 - 0.2;
-        // Left hand stays natural
-        leftTarget.current.x = -1.85;
-        leftTarget.current.y = -0.08;
-        leftTarget.current.z = 1.65;
+        // Right hand extends forward-right to hold teapot, left hand natural
+        leftTarget.current.set(-1.85, -0.08, 1.65);
+        rightTarget.current.set(1.52, 0.02, 1.52);
+        leftRotTarget.current.set(0.08, 0.2, 0.1);
+        rightRotTarget.current.set(-0.15, -0.35, -0.25);
         break;
       case "distribute":
-        // Right hand extends forward (holding fairness cup to pour)
-        rightTarget.current.x = 1.82;
-        rightTarget.current.y = -0.1 + 0.05;
-        rightTarget.current.z = 1.72 - 0.3;
-        leftTarget.current.x = -1.85;
-        leftTarget.current.y = -0.08;
-        leftTarget.current.z = 1.65;
+        // Right hand extends forward to pour from fairness cup
+        leftTarget.current.set(-1.85, -0.08, 1.65);
+        rightTarget.current.set(1.82, 0.0, 1.42);
+        leftRotTarget.current.set(0.08, 0.2, 0.1);
+        rightRotTarget.current.set(0.05, -0.1, -0.08);
         break;
       case "flipCup":
-        // Both hands extend forward (flipping cups)
-        leftTarget.current.x = -1.85;
-        leftTarget.current.y = -0.08 + 0.05;
-        leftTarget.current.z = 1.65 - 0.2;
-        rightTarget.current.x = 1.82;
-        rightTarget.current.y = -0.1 + 0.05;
-        rightTarget.current.z = 1.72 - 0.2;
+        // Both hands forward, fingers pinching
+        leftTarget.current.set(-1.65, -0.03, 1.45);
+        rightTarget.current.set(1.62, -0.03, 1.52);
+        leftRotTarget.current.set(0.15, 0.35, 0.2);
+        rightRotTarget.current.set(0.15, -0.35, -0.2);
         break;
       case "smell":
-        // Right hand raises up (lifting cup to smell)
-        rightTarget.current.x = 1.82;
-        rightTarget.current.y = -0.1 + 0.25;
-        rightTarget.current.z = 1.72 - 0.1;
-        leftTarget.current.x = -1.85;
-        leftTarget.current.y = -0.08;
-        leftTarget.current.z = 1.65;
+        // Right hand raises cup to nose level
+        leftTarget.current.set(-1.85, -0.08, 1.65);
+        rightTarget.current.set(0.0, 0.18, 1.1);
+        leftRotTarget.current.set(0.08, 0.2, 0.1);
+        rightRotTarget.current.set(-0.3, 0.0, 0.0);
+        break;
+      case "serve":
+        // Right hand extends forward with cup
+        leftTarget.current.set(-1.85, -0.08, 1.65);
+        rightTarget.current.set(0.2, 0.05, 1.2);
+        leftRotTarget.current.set(0.08, 0.2, 0.1);
+        rightRotTarget.current.set(0.1, -0.05, -0.05);
+        break;
+      case "serveGuest":
+        // Right hand extends far forward, offering
+        leftTarget.current.set(-1.85, -0.08, 1.65);
+        rightTarget.current.set(0.0, 0.12, 0.85);
+        leftRotTarget.current.set(0.08, 0.2, 0.1);
+        rightRotTarget.current.set(-0.2, 0.0, 0.0);
         break;
       default:
-        // brew, serve, serveGuest, idle - hands at natural position
-        leftTarget.current.x = -1.85;
-        leftTarget.current.y = -0.08;
-        leftTarget.current.z = 1.65;
-        rightTarget.current.x = 1.82;
-        rightTarget.current.y = -0.1;
-        rightTarget.current.z = 1.72;
-        break;
+        // brew or idle: hands at rest
+        leftTarget.current.set(-1.85, -0.08, 1.65);
+        rightTarget.current.set(1.82, -0.1, 1.72);
+        leftRotTarget.current.set(0.08, 0.2, 0.1);
+        rightRotTarget.current.set(0.1, -0.18, -0.12);
     }
 
-    // Smoothly interpolate left hand
+    // Apply entrance offset — hands slide up from below
+    const entranceOffset = (1 - ease) * hiddenY;
+
+    // Lerp left hand
     if (leftRef.current) {
-      leftRef.current.position.x += (leftTarget.current.x + Math.sin(t * 0.7) * 0.02 - leftRef.current.position.x) * lerpFactor;
-      leftRef.current.position.y += (leftTarget.current.y + Math.sin(t * 1.4) * 0.03 + 0.02 - leftRef.current.position.y) * lerpFactor;
-      leftRef.current.position.z += (leftTarget.current.z - leftRef.current.position.z) * lerpFactor;
-      leftRef.current.rotation.z = 0.1 + Math.sin(t * 0.9) * 0.03;
+      leftRef.current.position.lerp(leftTarget.current, delta * 3.5);
+      leftRef.current.position.y += entranceOffset;
+      leftRef.current.rotation.x += (leftRotTarget.current.x - leftRef.current.rotation.x) * delta * 3;
+      leftRef.current.rotation.y += (leftRotTarget.current.y - leftRef.current.rotation.y) * delta * 3;
+      leftRef.current.rotation.z += (leftRotTarget.current.z - leftRef.current.rotation.z) * delta * 3;
+      // Breathing idle
+      leftRef.current.position.x += Math.sin(t * 0.8) * 0.008;
+      leftRef.current.position.y += Math.cos(t * 1.1) * 0.005;
     }
 
-    // Smoothly interpolate right hand
+    // Lerp right hand
     if (rightRef.current) {
-      rightRef.current.position.x += (rightTarget.current.x + Math.cos(t * 0.8) * 0.02 - rightRef.current.position.x) * lerpFactor;
-      rightRef.current.position.y += (rightTarget.current.y + Math.cos(t * 1.2) * 0.03 + 0.02 - rightRef.current.position.y) * lerpFactor;
-      rightRef.current.position.z += (rightTarget.current.z - rightRef.current.position.z) * lerpFactor;
-      rightRef.current.rotation.z = -0.12 + Math.cos(t * 0.85) * 0.03;
+      rightRef.current.position.lerp(rightTarget.current, delta * 3.5);
+      rightRef.current.position.y += entranceOffset;
+      rightRef.current.rotation.x += (rightRotTarget.current.x - rightRef.current.rotation.x) * delta * 3;
+      rightRef.current.rotation.y += (rightRotTarget.current.y - rightRef.current.rotation.y) * delta * 3;
+      rightRef.current.rotation.z += (rightRotTarget.current.z - rightRef.current.rotation.z) * delta * 3;
+      // Breathing idle
+      rightRef.current.position.x += Math.sin(t * 0.9 + 0.5) * 0.008;
+      rightRef.current.position.y += Math.cos(t * 1.2 + 0.3) * 0.005;
     }
   });
 
   return (
     <group>
-      <mesh ref={leftRef} position={[-1.85, -0.08, 1.65]} rotation={[0.08, 0.2, 0.1]}>
-        <capsuleGeometry args={[0.22, 0.9, 6, 12]} />
-        <meshStandardMaterial color="#d4b08a" roughness={0.88} />
-      </mesh>
-      <mesh ref={rightRef} position={[1.82, -0.1, 1.72]} rotation={[0.1, -0.18, -0.12]}>
-        <capsuleGeometry args={[0.22, 0.9, 6, 12]} />
-        <meshStandardMaterial color="#d4b08a" roughness={0.88} />
-      </mesh>
+      {/* Left hand */}
+      <group ref={leftRef} position={[-1.85, -0.08, 1.65]}>
+        <mesh>
+          <capsuleGeometry args={[0.04, 0.12, 6, 12]} />
+          <meshStandardMaterial color="#d4b08a" roughness={0.6} />
+        </mesh>
+        {/* Fingers hint */}
+        <mesh position={[0.02, -0.09, 0.03]} rotation={[0.3, 0, 0]}>
+          <capsuleGeometry args={[0.015, 0.06, 4, 8]} />
+          <meshStandardMaterial color="#d4b08a" roughness={0.6} />
+        </mesh>
+      </group>
+      {/* Right hand */}
+      <group ref={rightRef} position={[1.82, -0.1, 1.72]}>
+        <mesh>
+          <capsuleGeometry args={[0.04, 0.12, 6, 12]} />
+          <meshStandardMaterial color="#d4b08a" roughness={0.6} />
+        </mesh>
+        {/* Fingers hint */}
+        <mesh position={[-0.02, -0.09, 0.03]} rotation={[0.3, 0, 0]}>
+          <capsuleGeometry args={[0.015, 0.06, 4, 8]} />
+          <meshStandardMaterial color="#d4b08a" roughness={0.6} />
+        </mesh>
+      </group>
     </group>
   );
 }
