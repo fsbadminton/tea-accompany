@@ -477,6 +477,9 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
       try {
         const sceneRoot = rightGroupRef.current.parent;
         if (sceneRoot) {
+          let count = 0;
+          sceneRoot.traverse((child) => { count++; });
+          console.log('[Hand] traverse found', count, 'children');
           sceneRoot.traverse((child) => {
             if (child.userData.__teapot && !teapotGroupRef.current) {
               teapotGroupRef.current = child;
@@ -489,9 +492,12 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
             teapotGroupRef.current.updateMatrixWorld(true);
             handleAnchorRef.current = anchor;
             anchorReadyRef.current = true;
+            console.log('[Hand] anchor created at teapot:', teapotGroupRef.current.position.x, teapotGroupRef.current.position.y, teapotGroupRef.current.position.z);
+          } else {
+            console.log('[Hand] NO teapot found with __teapot flag');
           }
         }
-      } catch (e) { /* scene not ready yet */ }
+      } catch (e) { console.error('[Hand] Step1 error:', e.message); }
     }
 
     // ─── Step 2: Compute hand target from anchor every frame ───
