@@ -9,6 +9,22 @@ import * as THREE from "three";
 // Using module-level ref avoids React Context bridging issues across R3F Canvas boundary.
 const _handleAnchorRef = { current: null };
 
+// ─── Flip Cup: module-level shared state ───
+// Hand drives the flip animation via these refs; tea table reads them.
+const _flipCupState = {
+  registered: [],        // Array of { worldPos: THREE.Vector3 } for each cup
+  flippingCupIndex: -1,  // Which cup is currently being flipped (-1 = none)
+  flipProgress: 0,       // 0..1 progress of current cup flip
+  flipLift: 0,           // Vertical lift offset during flip
+  flippedCups: [],       // Boolean per cup — true = upright (mouth up), false = inverted (mouth down)
+  flipDirection: 1,      // 1 = flip upright (mouth up), -1 = flip back (mouth down)
+};
+
+/** Check if cup at index has been permanently flipped. */
+function cupFlippedStateGlobal(index) {
+  return !!_flipCupState.flippedCups[index];
+}
+
 /** Returns a ref callback that registers a handle anchor Object3D on the teapot group. */
 function useHandleAnchorCallback(localPosition) {
   const prevElRef = useRef(null);
@@ -185,17 +201,28 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
   const isBrewing = activeGesture === "brew";
 
   // Cup flip and distribute state
-  const flipProgress = useRef(0);
-  const flippedPersisted = useRef(false);
-  const cup0Flipped = useRef(false);
   const cup0Filled = useRef(false);
   const cup0LiquidLevel = useRef(null);
-  const cup1Ref = useRef(null);
-  const cup1Flipped = useRef(false);
   const cup1Filled = useRef(false);
   const cup1LiquidLevel = useRef(null);
   const distributeTarget = useRef(-1);
   const distributeProgress = useRef(0);
+
+  // Per-cup refs for sequential flip
+  const cupRefsArr = useRef([]);
+
+  // Register cup world positions for hand tracking
+  const makeCupRefCb = useCallback((index) => (el) => {
+    cupRefsArr.current[index] = el;
+    if (el) {
+      const wp = new THREE.Vector3();
+      el.getWorldPosition(wp);
+      if (!_flipCupState.registered[index]) {
+        _flipCupState.registered[index] = { worldPos: new THREE.Vector3() };
+      }
+      _flipCupState.registered[index].worldPos.copy(wp);
+    }
+  }, []);
 
   useFrame((state, delta) => {
     if (!gaiwanRef.current) return;
@@ -241,60 +268,46 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
         if (Math.abs(gaiwanRef.current.rotation.x) < 0.005) gaiwanRef.current.rotation.x = 0;
       }
 
-      // Cup flip animation — toggle on flipCup, persist state when gesture changes
-      if (activeGesture === "flipCup") {
-        if (!flippedPersisted.current) {
-          flipProgress.current = Math.min(flipProgress.current + delta * 0.8, 1);
-          if (flipProgress.current >= 0.98) flippedPersisted.current = true;
+      // Cup flip animation — per-cup driven by hand via module-level _flipCupState
+      const flipIdx = _flipCupState.flippingCupIndex;
+      const flipProg = _flipCupState.flipProgress;
+      const flipLift = _flipCupState.flipLift;
+      const flipDir = _flipCupState.flipDirection;
+      const cupCount = 2; // TeaTable3D has 2 cups
+
+      for (let i = 0; i < cupCount; i++) {
+        const cupEl = cupRefsArr.current[i];
+        if (!cupEl) continue;
+        if (i === flipIdx) {
+          // Currently being flipped by hand — direction-aware
+          const baseRot = flipDir === 1 ? 0 : -Math.PI; // start from current state
+          cupEl.rotation.x = baseRot + flipProg * -Math.PI * flipDir;
+          cupEl.position.y = 0.565 + flipLift;
         } else {
-          flipProgress.current = Math.max(flipProgress.current - delta * 0.8, 0);
-          if (flipProgress.current <= 0.02) flippedPersisted.current = false;
+          // Not currently flipping — stay in last known state
+          cupEl.rotation.x = _flipCupState.flippedCups[i] ? -Math.PI : 0;
         }
       }
 
-      // Apply flip to cups — easeFlip computed once, shared across both cups
-      const easeFlip = 1 - Math.pow(1 - flipProgress.current, 3);
-
-      // Apply flip to cup0
-      if (cupRef.current) {
-        cupRef.current.rotation.x = Math.PI * (1 - easeFlip);
-
-        if (flipProgress.current >= 0.98 && !cup0Flipped.current) {
-          cup0Flipped.current = true;
-        } else if (flipProgress.current < 0.02 && cup0Flipped.current) {
-          cup0Flipped.current = false;
-        }
-      }
-
-      // Apply flip to cup1
-      if (cup1Ref.current) {
-        cup1Ref.current.rotation.x = Math.PI * (1 - easeFlip);
-
-        if (flipProgress.current >= 0.98 && !cup1Flipped.current) {
-          cup1Flipped.current = true;
-        } else if (flipProgress.current < 0.02 && cup1Flipped.current) {
-          cup1Flipped.current = false;
-        }
-      }
-
-      // Cup0 smell/serveGuest/serve position animation
-      if (cupRef.current) {
+      // Cup0 smell/serveGuest/serve position animation (skip during flipCup)
+      if (cupRefsArr.current[0] && activeGesture !== "flipCup") {
+        const cup0 = cupRefsArr.current[0];
         const easeSmell = 1 - Math.pow(1 - smellRef.current, 3);
         const easeServeGuest = 1 - Math.pow(1 - serveGuestRef.current, 3);
         const easeServe = 1 - Math.pow(1 - serveRef.current, 3);
-        cupRef.current.position.y = 0.565 + easeSmell * 0.3 + easeServeGuest * 0.05;
-        cupRef.current.position.z = 0.08 + easeServe * 0.15;
+        cup0.position.y = 0.565 + easeSmell * 0.3 + easeServeGuest * 0.05;
+        cup0.position.z = 0.08 + easeServe * 0.15;
         const floatVal = serveGuestRef.current * Math.sin(state.clock.elapsedTime * 1.5) * 0.02;
-        cupRef.current.position.y += easeServeGuest * 0.4 + floatVal;
+        cup0.position.y += easeServeGuest * 0.4 + floatVal;
       }
 
       // Liquid level opacity animation
       if (cup0LiquidLevel.current) {
-        const targetOpacity = cup0Flipped.current && cup0Filled.current ? 0.85 : 0;
+        const targetOpacity = _flipCupState.flippedCups[0] && cup0Filled.current ? 0.85 : 0;
         cup0LiquidLevel.current.material.opacity += (targetOpacity - cup0LiquidLevel.current.material.opacity) * delta * 3;
       }
       if (cup1LiquidLevel.current) {
-        const targetOpacity = cup1Flipped.current && cup1Filled.current ? 0.85 : 0;
+        const targetOpacity = _flipCupState.flippedCups[1] && cup1Filled.current ? 0.85 : 0;
         cup1LiquidLevel.current.material.opacity += (targetOpacity - cup1LiquidLevel.current.material.opacity) * delta * 3;
       }
     } catch (e) {
@@ -316,7 +329,7 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
 
   const handleCupClick = (cupIndex) => {
     if (activeGesture !== "distribute") return;
-    const isFlipped = cupIndex === 0 ? cup0Flipped.current : cup1Flipped.current;
+    const isFlipped = _flipCupState.flippedCups[cupIndex];
     const isFilled = cupIndex === 0 ? cup0Filled.current : cup1Filled.current;
     if (!isFlipped || isFilled || distributeTarget.current >= 0) return;
     distributeTarget.current = cupIndex;
@@ -376,7 +389,7 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
 
         {/* Cup 0 - 品茗杯 */}
         <group
-          ref={cupRef}
+          ref={makeCupRefCb(0)}
           position={[-0.45, 0.565, 0.08]}
           onClick={(e) => { e.stopPropagation(); handleCupClick(0); }}
         >
@@ -404,7 +417,7 @@ function TeaTable3D({ position = [0, 0.2, 1.1], wood = "#8a6548", tray = "#c8986
         {/* Cup 1 - 品茗杯 (full table only) */}
         {tableStyle === "full" && (
           <group
-            ref={cup1Ref}
+            ref={makeCupRefCb(1)}
             position={[0.02, 0.565, 0.18]}
             onClick={(e) => { e.stopPropagation(); handleCupClick(1); }}
           >
@@ -470,6 +483,14 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
   const releaseStartPos = useRef(new THREE.Vector3());
   const releaseStartQuat = useRef(new THREE.Quaternion());
   const phasePrevRef = useRef('idle');
+
+  // ── Flip cup state machine ──
+  const flipPhaseRef = useRef('idle');         // idle | approach | grip | lift | flip | release | next
+  const flipTimerRef = useRef(0);
+  const flipCupIdxRef = useRef(0);             // which cup we're currently working on
+  const flipTargetPos = useRef(new THREE.Vector3());
+  const flipLiftStartY = useRef(0);
+  const flipDoneRef = useRef(false);           // true after finishing all cups — block re-trigger until gesture re-click
 
   // Pre-allocated temporaries — avoid per-frame allocation
   const _anchorWP = useMemo(() => new THREE.Vector3(), []);
@@ -550,6 +571,120 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
         tiltProgressRef.current = 0;
       }
       phasePrevRef.current = pourPhaseRef.current;
+    }
+
+    // ─── Flip cup state machine (sequential per-cup) ───
+    const isFlipCup = activeGesture === "flipCup";
+    const registeredCups = _flipCupState.registered;
+
+    // Start flipping when gesture becomes flipCup (only if not already done this cycle)
+    if (isFlipCup && flipPhaseRef.current === 'idle' && !flipDoneRef.current) {
+      // Determine direction: if all cups are upright → flip back (direction=-1), otherwise flip upright (direction=1)
+      const allUpright = registeredCups.length > 0 && registeredCups.every((_, i) => cupFlippedStateGlobal(i));
+      const direction = allUpright ? -1 : 1;
+      _flipCupState.flipDirection = direction;
+
+      // Find first cup that needs flipping in this direction
+      const target = registeredCups.findIndex((_, i) => direction === 1 ? !cupFlippedStateGlobal(i) : cupFlippedStateGlobal(i));
+      if (target >= 0) {
+        flipCupIdxRef.current = target;
+        flipPhaseRef.current = 'approach';
+        flipTimerRef.current = 0;
+      } else {
+        // Nothing to flip — mark done immediately
+        flipDoneRef.current = true;
+      }
+    }
+
+    // Reset when gesture changes away from flipCup — allow re-trigger on next click
+    if (!isFlipCup) {
+      if (flipPhaseRef.current !== 'idle') {
+        flipPhaseRef.current = 'idle';
+        flipTimerRef.current = 0;
+        _flipCupState.flippingCupIndex = -1;
+        _flipCupState.flipProgress = 0;
+        _flipCupState.flipLift = 0;
+      }
+      flipDoneRef.current = false;
+    }
+
+    // Phase timer
+    if (flipPhaseRef.current !== 'idle') {
+      flipTimerRef.current += delta;
+    }
+
+    // Phase transitions
+    if (flipPhaseRef.current === 'approach' && flipTimerRef.current > 0.4) {
+      flipPhaseRef.current = 'grip';
+      flipTimerRef.current = 0;
+    }
+    if (flipPhaseRef.current === 'grip' && flipTimerRef.current > 0.2) {
+      flipPhaseRef.current = 'lift';
+      flipTimerRef.current = 0;
+      // Record starting Y for lift
+      const cupWp = registeredCups[flipCupIdxRef.current]?.worldPos;
+      if (cupWp) flipLiftStartY.current = cupWp.y;
+    }
+    if (flipPhaseRef.current === 'lift' && flipTimerRef.current > 0.3) {
+      flipPhaseRef.current = 'flip';
+      flipTimerRef.current = 0;
+    }
+    if (flipPhaseRef.current === 'flip' && flipTimerRef.current > 1.0) {
+      flipPhaseRef.current = 'release';
+      flipTimerRef.current = 0;
+    }
+    if (flipPhaseRef.current === 'release' && flipTimerRef.current > 0.3) {
+      // Move to next cup or finish
+      const currentIdx = flipCupIdxRef.current;
+      const dir = _flipCupState.flipDirection;
+
+      // Toggle current cup's state
+      _flipCupState.flippedCups[currentIdx] = dir === 1;
+      _flipCupState.flippingCupIndex = -1;
+      _flipCupState.flipProgress = 0;
+      _flipCupState.flipLift = 0;
+
+      // Find next cup that needs flipping in the same direction
+      let nextIdx = -1;
+      for (let i = currentIdx + 1; i < registeredCups.length; i++) {
+        const needsFlip = dir === 1 ? !_flipCupState.flippedCups[i] : !!_flipCupState.flippedCups[i];
+        if (needsFlip) { nextIdx = i; break; }
+      }
+      if (nextIdx >= 0) {
+        flipCupIdxRef.current = nextIdx;
+        flipPhaseRef.current = 'approach';
+        flipTimerRef.current = 0;
+      } else {
+        flipPhaseRef.current = 'idle';
+        flipTimerRef.current = 0;
+        flipDoneRef.current = true; // all cups done — block re-trigger until gesture re-click
+      }
+    }
+
+    // Update module-level state for tea table
+    if (flipPhaseRef.current === 'flip') {
+      const flipT = Math.min(flipTimerRef.current / 1.0, 1);
+      // easeOutBack for a satisfying overshoot
+      const c1 = 1.70158;
+      const c3 = c1 + 1;
+      const eased = 1 + c3 * Math.pow(flipT - 1, 3) + c1 * Math.pow(flipT - 1, 2);
+      _flipCupState.flippingCupIndex = flipCupIdxRef.current;
+      _flipCupState.flipProgress = Math.min(eased, 1.05); // slight overshoot OK
+      _flipCupState.flipLift = Math.sin(flipT * Math.PI) * 0.06;
+    } else if (flipPhaseRef.current === 'lift') {
+      const liftT = Math.min(flipTimerRef.current / 0.3, 1);
+      _flipCupState.flippingCupIndex = flipCupIdxRef.current;
+      _flipCupState.flipProgress = 0;
+      _flipCupState.flipLift = liftT * 0.04;
+    } else if (flipPhaseRef.current === 'release') {
+      // Hold final state briefly
+      _flipCupState.flippingCupIndex = flipCupIdxRef.current;
+      _flipCupState.flipProgress = 1;
+      _flipCupState.flipLift = Math.max(0, (1 - flipTimerRef.current / 0.3) * 0.06);
+    } else if (flipPhaseRef.current !== 'idle') {
+      _flipCupState.flippingCupIndex = flipCupIdxRef.current;
+      _flipCupState.flipProgress = 0;
+      _flipCupState.flipLift = 0;
     }
 
     // ─── Anchor position/rotation read (used by approach/grip/pour) ───
@@ -663,14 +798,43 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
       ft.lT = leftCurl; ft.lI = leftCurl; ft.lM = leftCurl; ft.lR = leftCurl; ft.lP = leftCurl;
     } else {
       switch (activeGesture) {
-        case "flipCup":
-          rightPosTarget.current.set(0.025, 0.15, 0.175);
-          rightRotTarget.current.set(0.1, -0.05, -0.1);
-          leftPosTarget.current.set(-0.025, 0.15, 0.175);
-          leftRotTarget.current.set(0.1, 0.05, 0.1);
-          ft.rT = 0.9; ft.rI = 0.85; ft.rM = 0.8; ft.rR = 0.1; ft.rP = 0.1;
-          ft.lT = 0.9; ft.lI = 0.85; ft.lM = 0.8; ft.lR = 0.1; ft.lP = 0.1;
+        case "flipCup": {
+          const fPhase = flipPhaseRef.current;
+          const fIdx = flipCupIdxRef.current;
+          const cupWp = registeredCups[fIdx]?.worldPos;
+
+          if (fPhase !== 'idle' && cupWp && rightGroupRef.current) {
+            // Move hand to current cup's world position
+            if (fPhase === 'approach') {
+              rightPosTarget.current.lerp(cupWp, delta * 10);
+            } else {
+              rightPosTarget.current.copy(cupWp);
+            }
+            // Hand orientation: match cup orientation, fingers ready to grip
+            if (fPhase === 'grip' || fPhase === 'lift' || fPhase === 'flip') {
+              // Slight tilt to look like holding the cup
+              rightRotTarget.current.set(-0.3, 0, 0);
+              ft.rT = 0.9; ft.rI = 0.85; ft.rM = 0.8; ft.rR = 0.15; ft.rP = 0.1;
+            } else if (fPhase === 'release') {
+              rightRotTarget.current.set(0.1, -0.05, -0.1);
+              ft.rT = 0.4; ft.rI = 0.35; ft.rM = 0.3; ft.rR = 0.1; ft.rP = 0.1;
+            } else {
+              // approach
+              rightRotTarget.current.set(0.1, -0.05, -0.1);
+              ft.rT = 0.5; ft.rI = 0.45; ft.rM = 0.4; ft.rR = 0.1; ft.rP = 0.1;
+            }
+          } else {
+            // Idle or no cup — hands at rest
+            rightPosTarget.current.set(0.025, 0.15, 0.175);
+            rightRotTarget.current.set(0.1, -0.05, -0.1);
+            ft.rT = 0.3; ft.rI = 0.25; ft.rM = 0.2; ft.rR = 0.1; ft.rP = 0.1;
+          }
+          // Left hand rests at side
+          leftPosTarget.current.set(-0.31, 0.15, 0.28);
+          leftRotTarget.current.set(0.08, 0.2, 0.1);
+          ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
           break;
+        }
         case "distribute":
           rightPosTarget.current.set(-0.008, 0.15, 0.142);
           rightRotTarget.current.set(-0.15, 0.0, -0.15);
@@ -718,25 +882,29 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
     if (rightGroupRef.current) {
       // Position: always lerp with phase-aware rate
       const inGripOrPour = isPour && (pourPhaseRef.current === 'grip' || pourPhaseRef.current === 'pour');
-      const posLerpRate = inGripOrPour ? delta * 14 : lerpSpeed;
+      const inFlipActive = isFlipCup && ['grip', 'lift', 'flip', 'release'].includes(flipPhaseRef.current);
+      const posLerpRate = (inGripOrPour || inFlipActive) ? delta * 14 : lerpSpeed;
       rightGroupRef.current.position.lerp(rightPosTarget.current, posLerpRate);
 
       // Rotation: in grip/pour/release, handled via quaternion in the case block; otherwise lerp euler
-      const skipEulerRot = isPour && (pourPhaseRef.current === 'grip' || pourPhaseRef.current === 'pour' || pourPhaseRef.current === 'release');
+      const skipEulerRot = (isPour && (pourPhaseRef.current === 'grip' || pourPhaseRef.current === 'pour' || pourPhaseRef.current === 'release'))
+        || (isFlipCup && ['grip', 'lift', 'flip', 'release'].includes(flipPhaseRef.current));
       if (!skipEulerRot) {
         rightGroupRef.current.rotation.x += (rightRotTarget.current.x - rightGroupRef.current.rotation.x) * lerpSpeed;
         rightGroupRef.current.rotation.y += (rightRotTarget.current.y - rightGroupRef.current.rotation.y) * lerpSpeed;
         rightGroupRef.current.rotation.z += (rightRotTarget.current.z - rightGroupRef.current.rotation.z) * lerpSpeed;
       }
 
-      // Subtle idle micro-movement
-      if (!isPour || pourPhaseRef.current === 'approach' || pourPhaseRef.current === 'release') {
+      // Subtle idle micro-movement (disabled during pour grip/pour and flipCup active phases)
+      const flipActive = isFlipCup && flipPhaseRef.current !== 'idle';
+      const pourActive = isPour && (pourPhaseRef.current === 'grip' || pourPhaseRef.current === 'pour');
+      if (!pourActive && !flipActive) {
         const micro = 0.002;
         rightGroupRef.current.position.x += Math.sin(t * 0.9 + 0.5) * micro;
         rightGroupRef.current.position.y += Math.cos(t * 1.2 + 0.3) * micro * 0.7;
       }
-      // Subtle hold micro-movement during grip/pour — lower amplitude, slower
-      if (isPour && (pourPhaseRef.current === 'grip' || pourPhaseRef.current === 'pour')) {
+      // Subtle hold micro-movement during grip/pour
+      if (pourActive) {
         const holdMicro = 0.0006;
         rightGroupRef.current.position.x += Math.sin(t * 0.4 + 1.7) * holdMicro;
         rightGroupRef.current.position.y += Math.cos(t * 0.55 + 2.1) * holdMicro * 0.8;
@@ -2267,10 +2435,6 @@ function TeaSetOnTray({ activeGesture, tableStyle, handHoldingRef }) {
     handleAnchorCb(el);
   }, [handleAnchorCb]);
   const fairnessCupRef = useRef(null);
-  const cup0Ref = useRef(null);
-  const cup1Ref = useRef(null);
-  const cup2Ref = useRef(null);
-  const cup3Ref = useRef(null);
   const smellRef = useRef(0);
   const serveGuestRef = useRef(0);
   const pourRef = useRef(0);
@@ -2280,13 +2444,23 @@ function TeaSetOnTray({ activeGesture, tableStyle, handHoldingRef }) {
   const fairnessCupSurfaceRef = useRef(null);
   const pourFillRef = useRef(0);
 
-  // Cup flip state
-  const flipProgress = useRef(0);
-  const flippedPersisted = useRef(false); // persists flip after gesture changes
-  const cupRefsAll = useRef([cup0Ref, cup1Ref, cup2Ref, cup3Ref]);
-  const flippedState = useRef([false, false, false, false]);
+  // Per-cup refs for sequential flip
+  const cupRefsArr = useRef([]);
   const filledState = useRef([false, false, false, false]);
   const liquidRefs = useRef([null, null, null, null]);
+
+  // Register cup world positions for hand tracking
+  const makeCupRefCb = useCallback((index) => (el) => {
+    cupRefsArr.current[index] = el;
+    if (el) {
+      const wp = new THREE.Vector3();
+      el.getWorldPosition(wp);
+      if (!_flipCupState.registered[index]) {
+        _flipCupState.registered[index] = { worldPos: new THREE.Vector3() };
+      }
+      _flipCupState.registered[index].worldPos.copy(wp);
+    }
+  }, []);
 
   // Distribute state
   const distributeTarget = useRef(-1);
@@ -2361,40 +2535,37 @@ function TeaSetOnTray({ activeGesture, tableStyle, handHoldingRef }) {
         serveRef.current = Math.max(serveRef.current - delta * 0.6, 0);
       }
 
-      if (cup0Ref.current) {
+      // Cup0 smell/serveGuest/serve position animation (skip during flipCup)
+      if (cupRefsArr.current[0] && activeGesture !== "flipCup") {
+        const cup0 = cupRefsArr.current[0];
         const easeSmell = 1 - Math.pow(1 - smellRef.current, 3);
         const easeServeGuest = 1 - Math.pow(1 - serveGuestRef.current, 3);
         const easeServe = 1 - Math.pow(1 - serveRef.current, 3);
-        cup0Ref.current.position.y = 0.08 + easeSmell * 0.3;
-        cup0Ref.current.position.z = 0.2 + easeServe * 0.15;
+        cup0.position.y = 0.08 + easeSmell * 0.3;
+        cup0.position.z = 0.2 + easeServe * 0.15;
         const floatVal = serveGuestRef.current * Math.sin(state.clock.elapsedTime * 1.5) * 0.02;
-        cup0Ref.current.position.y += easeServeGuest * 0.45 + floatVal;
-        cup0Ref.current.position.z += easeServeGuest * 0.4;
+        cup0.position.y += easeServeGuest * 0.45 + floatVal;
+        cup0.position.z += easeServeGuest * 0.4;
       }
 
-      // Cup flip animation — toggle on flipCup, persist state when gesture changes
-      if (activeGesture === "flipCup") {
-        if (!flippedPersisted.current) {
-          flipProgress.current = Math.min(flipProgress.current + delta * 0.8, 1);
-          if (flipProgress.current >= 0.98) flippedPersisted.current = true;
-        } else {
-          flipProgress.current = Math.max(flipProgress.current - delta * 0.8, 0);
-          if (flipProgress.current <= 0.02) flippedPersisted.current = false;
-        }
-      }
-
-      // Apply flip rotation to all cups
-      const easeFlip = 1 - Math.pow(1 - flipProgress.current, 3);
+      // Cup flip animation — per-cup driven by hand via module-level _flipCupState
+      const flipIdx = _flipCupState.flippingCupIndex;
+      const flipProg = _flipCupState.flipProgress;
+      const flipLift = _flipCupState.flipLift;
+      const flipDir = _flipCupState.flipDirection;
       const cupCount = tableStyle === "full" ? 4 : 2;
+
       for (let i = 0; i < cupCount; i++) {
-        const ref = cupRefsAll.current[i];
-        if (ref.current) {
-          ref.current.rotation.x = Math.PI * (1 - easeFlip);
-        }
-        if (flipProgress.current >= 0.98 && !flippedState.current[i]) {
-          flippedState.current[i] = true;
-        } else if (flipProgress.current < 0.02 && flippedState.current[i]) {
-          flippedState.current[i] = false;
+        const cupEl = cupRefsArr.current[i];
+        if (!cupEl) continue;
+        if (i === flipIdx) {
+          // Currently being flipped by hand — direction-aware
+          const baseRot = flipDir === 1 ? 0 : -Math.PI;
+          cupEl.rotation.x = baseRot + flipProg * -Math.PI * flipDir;
+          cupEl.position.y = 0.08 + flipLift;
+        } else {
+          // Not currently flipping — stay in last known state
+          cupEl.rotation.x = _flipCupState.flippedCups[i] ? -Math.PI : 0;
         }
       }
 
@@ -2402,7 +2573,7 @@ function TeaSetOnTray({ activeGesture, tableStyle, handHoldingRef }) {
       for (let i = 0; i < cupCount; i++) {
         const liquidMesh = liquidRefs.current[i];
         if (liquidMesh) {
-          const targetOpacity = flippedState.current[i] && filledState.current[i] ? 0.85 : 0;
+          const targetOpacity = _flipCupState.flippedCups[i] && filledState.current[i] ? 0.85 : 0;
           liquidMesh.material.opacity += (targetOpacity - liquidMesh.material.opacity) * delta * 3;
         }
       }
@@ -2431,7 +2602,7 @@ function TeaSetOnTray({ activeGesture, tableStyle, handHoldingRef }) {
 
   const handleCupClick = (cupIndex) => {
     if (activeGesture !== "distribute") return;
-    if (!flippedState.current[cupIndex] || filledState.current[cupIndex] || distributeTarget.current >= 0) return;
+    if (!_flipCupState.flippedCups[cupIndex] || filledState.current[cupIndex] || distributeTarget.current >= 0) return;
     distributeTarget.current = cupIndex;
     distributeProgress.current = 0;
   };
@@ -2518,7 +2689,7 @@ function TeaSetOnTray({ activeGesture, tableStyle, handHoldingRef }) {
       {[[-0.72, 0.08, 0.2], [-0.34, 0.08, 0.28], [0.27, 0.08, 0.27], [0.55, 0.08, 0.22]].slice(0, tableStyle === "full" ? 4 : 2).map((position, index) => (
         <group
           key={index}
-          ref={cupRefsAll.current[index]}
+          ref={makeCupRefCb(index)}
           position={position}
         >
           <mesh
@@ -2545,7 +2716,7 @@ function TeaSetOnTray({ activeGesture, tableStyle, handHoldingRef }) {
             <meshStandardMaterial color="#8a6a30" transparent opacity={0} roughness={0.15} />
           </mesh>
           <SteamParticles position={[0, 0.1, 0]} count={12} spread={0.05} riseSpeed={0.06} size={0.03} opacity={0.1} />
-          <GestureGlowRing active={activeGesture === "distribute" && !flippedState.current[index] && !filledState.current[index]} position={[0, 0.02, 0]} />
+          <GestureGlowRing active={activeGesture === "distribute" && !_flipCupState.flippedCups[index] && !filledState.current[index]} position={[0, 0.02, 0]} />
           {index === 0 && (
             <>
               <GestureGlowRing active={activeGesture === "serve" || activeGesture === "smell" || activeGesture === "serveGuest"} position={[0, 0.02, 0]} />
