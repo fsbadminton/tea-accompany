@@ -463,10 +463,21 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
   const pourPhaseRef = useRef('idle');
   const phaseTimerRef = useRef(0);
 
+  // ── Smooth transition refs ──
+  const gripLerpRef = useRef(0);
+  const tiltProgressRef = useRef(0);
+  const releaseProgressRef = useRef(0);
+  const releaseStartPos = useRef(new THREE.Vector3());
+  const releaseStartQuat = useRef(new THREE.Quaternion());
+  const phasePrevRef = useRef('idle');
+
   // Pre-allocated temporaries — avoid per-frame allocation
   const _anchorWP = useMemo(() => new THREE.Vector3(), []);
   const _anchorWQ = useMemo(() => new THREE.Quaternion(), []);
   const _tiltQuat = useMemo(() => new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -0.5)), []);
+  const _releaseBezierP = useMemo(() => new THREE.Vector3(), []);
+  const _releaseControlP = useMemo(() => new THREE.Vector3(), []);
+  const _slerpQuat = useMemo(() => new THREE.Quaternion(), []);
 
   // Cleanup on unmount — just reset holding flag
   useEffect(() => {
@@ -515,6 +526,7 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
     if (pourPhaseRef.current === 'grip' && phaseTimerRef.current > 0.4) {
       pourPhaseRef.current = 'pour';
       phaseTimerRef.current = 0;
+      tiltProgressRef.current = 0;
     }
     if (pourPhaseRef.current === 'pour' && phaseTimerRef.current > 2.5) {
       pourPhaseRef.current = 'release';
@@ -524,6 +536,20 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
       pourPhaseRef.current = 'idle';
       phaseTimerRef.current = 0;
       if (handHoldingRef) handHoldingRef.current = false;
+    }
+
+    // Capture start-of-phase state for smooth transitions
+    if (pourPhaseRef.current !== phasePrevRef.current) {
+      if (pourPhaseRef.current === 'release' && rightGroupRef.current) {
+        releaseStartPos.current.copy(rightGroupRef.current.position);
+        releaseStartQuat.current.copy(rightGroupRef.current.quaternion);
+        releaseProgressRef.current = 0;
+      }
+      if (pourPhaseRef.current === 'approach') {
+        gripLerpRef.current = 0;
+        tiltProgressRef.current = 0;
+      }
+      phasePrevRef.current = pourPhaseRef.current;
     }
 
     // ─── Anchor position/rotation read (used by approach/grip/pour) ───
@@ -550,14 +576,28 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
     const ft = fingerTargets.current;
 
     if (isPour) {
-      leftPosTarget.current.set(-0.31, 0.15, 0.28);
-      leftRotTarget.current.set(0.08, 0.2, 0.1);
+      // Left hand: subtle forward drift during pour to suggest counterbalance
+      switch (pourPhaseRef.current) {
+        case 'approach':
+          leftPosTarget.current.set(-0.28, 0.16, 0.22);
+          leftRotTarget.current.set(0.1, 0.15, 0.08);
+          break;
+        case 'grip':
+        case 'pour':
+          leftPosTarget.current.set(-0.24, 0.17, 0.18);
+          leftRotTarget.current.set(0.05, 0.1, 0.05);
+          break;
+        case 'release':
+          leftPosTarget.current.set(-0.31, 0.15, 0.28);
+          leftRotTarget.current.set(0.08, 0.2, 0.1);
+          break;
+      }
 
       switch (pourPhaseRef.current) {
         case 'approach': {
+          gripLerpRef.current = 0;
           // Lerp hand toward anchor world position
           if (anchorValid) {
-            // Parent is scene root (identity) — local pos = world pos
             rightPosTarget.current.copy(_anchorWP);
           } else {
             rightPosTarget.current.set(0.18, 0.17, 0.0);
@@ -567,32 +607,60 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
           break;
         }
         case 'grip': {
-          // Snap hand to anchor — world coordinate alignment
+          // Gradual convergence to anchor — no snap
+          gripLerpRef.current = Math.min(gripLerpRef.current + delta / 0.4, 1);
+          const gEase = 1 - Math.pow(1 - gripLerpRef.current, 3);
           if (anchorValid) {
-            rightPosTarget.current.copy(_anchorWP);
-            rightGroupRef.current.quaternion.copy(_anchorWQ);
+            rightPosTarget.current.lerpVectors(
+              rightGroupRef.current.position,
+              _anchorWP,
+              gEase
+            );
+            _slerpQuat.copy(rightGroupRef.current.quaternion).slerp(_anchorWQ, gEase);
+            rightGroupRef.current.quaternion.copy(_slerpQuat);
           }
           ft.rT = 0.85; ft.rI = 0.75; ft.rM = 0.7; ft.rR = 0.65; ft.rP = 0.55;
           break;
         }
         case 'pour': {
-          // Hand follows anchor + tilt offset
+          // Gradual tilt: ramp from 0 to -0.5rad over ~0.8s
+          tiltProgressRef.current = Math.min(tiltProgressRef.current + delta / 0.8, 1);
+          const tEase = 1 - Math.pow(1 - tiltProgressRef.current, 3);
           if (anchorValid) {
             rightPosTarget.current.copy(_anchorWP);
+            _tiltQuat.setFromEuler(new THREE.Euler(0, 0, -0.5 * tEase));
             rightGroupRef.current.quaternion.copy(_anchorWQ).multiply(_tiltQuat);
           }
           ft.rT = 0.9; ft.rI = 0.8; ft.rM = 0.75; ft.rR = 0.7; ft.rP = 0.6;
           break;
         }
         case 'release': {
-          // Lerp back to idle
-          rightPosTarget.current.set(0.3, 0.15, 0.28);
-          rightRotTarget.current.set(0.1, -0.18, -0.12);
+          // Curved release path via quadratic Bezier
+          releaseProgressRef.current = Math.min(releaseProgressRef.current + delta / 1.0, 1);
+          const rEase = 1 - Math.pow(1 - releaseProgressRef.current, 3);
+
+          const idleEnd = _releaseControlP.set(0.3, 0.15, 0.28);
+          _releaseBezierP.lerpVectors(releaseStartPos.current, idleEnd, 0.5);
+          _releaseBezierP.y += 0.06;
+          _releaseBezierP.z -= 0.03;
+
+          const u = 1 - rEase;
+          rightPosTarget.current.set(
+            u * u * releaseStartPos.current.x + 2 * u * rEase * _releaseBezierP.x + rEase * rEase * idleEnd.x,
+            u * u * releaseStartPos.current.y + 2 * u * rEase * _releaseBezierP.y + rEase * rEase * idleEnd.y,
+            u * u * releaseStartPos.current.z + 2 * u * rEase * _releaseBezierP.z + rEase * rEase * idleEnd.z
+          );
+
+          _slerpQuat.setFromEuler(new THREE.Euler(0.1, -0.18, -0.12));
+          rightGroupRef.current.quaternion.copy(releaseStartQuat.current).slerp(_slerpQuat, rEase);
+
           ft.rT = 0.3; ft.rI = 0.25; ft.rM = 0.2; ft.rR = 0.2; ft.rP = 0.2;
           break;
         }
       }
-      ft.lT = 0.15; ft.lI = 0.15; ft.lM = 0.15; ft.lR = 0.15; ft.lP = 0.15;
+      // Left fingers: gentle curl during grip/pour, relaxed otherwise
+      const leftCurl = (pourPhaseRef.current === 'grip' || pourPhaseRef.current === 'pour') ? 0.3 : 0.15;
+      ft.lT = leftCurl; ft.lI = leftCurl; ft.lM = leftCurl; ft.lR = leftCurl; ft.lP = leftCurl;
     } else {
       switch (activeGesture) {
         case "flipCup":
@@ -648,25 +716,32 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
     const lerpSpeed = delta * 8;
 
     if (rightGroupRef.current) {
-      // In grip/pour phases, position is set directly (not lerped)
-      const directPos = isPour && (pourPhaseRef.current === 'grip' || pourPhaseRef.current === 'pour');
-      if (directPos) {
-        rightGroupRef.current.position.copy(rightPosTarget.current);
-      } else {
-        rightGroupRef.current.position.lerp(rightPosTarget.current, lerpSpeed);
-      }
-      // Rotation: in grip/pour, already set via quaternion; in other phases, lerp euler
-      const directRot = isPour && (pourPhaseRef.current === 'grip' || pourPhaseRef.current === 'pour');
-      if (!directRot) {
+      // Position: always lerp with phase-aware rate
+      const inGripOrPour = isPour && (pourPhaseRef.current === 'grip' || pourPhaseRef.current === 'pour');
+      const posLerpRate = inGripOrPour ? delta * 14 : lerpSpeed;
+      rightGroupRef.current.position.lerp(rightPosTarget.current, posLerpRate);
+
+      // Rotation: in grip/pour/release, handled via quaternion in the case block; otherwise lerp euler
+      const skipEulerRot = isPour && (pourPhaseRef.current === 'grip' || pourPhaseRef.current === 'pour' || pourPhaseRef.current === 'release');
+      if (!skipEulerRot) {
         rightGroupRef.current.rotation.x += (rightRotTarget.current.x - rightGroupRef.current.rotation.x) * lerpSpeed;
         rightGroupRef.current.rotation.y += (rightRotTarget.current.y - rightGroupRef.current.rotation.y) * lerpSpeed;
         rightGroupRef.current.rotation.z += (rightRotTarget.current.z - rightGroupRef.current.rotation.z) * lerpSpeed;
       }
-      // Subtle idle micro-movement (disabled during grip/pour)
+
+      // Subtle idle micro-movement
       if (!isPour || pourPhaseRef.current === 'approach' || pourPhaseRef.current === 'release') {
         const micro = 0.002;
         rightGroupRef.current.position.x += Math.sin(t * 0.9 + 0.5) * micro;
         rightGroupRef.current.position.y += Math.cos(t * 1.2 + 0.3) * micro * 0.7;
+      }
+      // Subtle hold micro-movement during grip/pour — lower amplitude, slower
+      if (isPour && (pourPhaseRef.current === 'grip' || pourPhaseRef.current === 'pour')) {
+        const holdMicro = 0.0006;
+        rightGroupRef.current.position.x += Math.sin(t * 0.4 + 1.7) * holdMicro;
+        rightGroupRef.current.position.y += Math.cos(t * 0.55 + 2.1) * holdMicro * 0.8;
+        rightGroupRef.current.position.z += Math.sin(t * 0.35) * holdMicro * 0.5;
+        rightGroupRef.current.rotation.z += Math.sin(t * 0.6 + 0.9) * 0.001;
       }
     }
 
@@ -679,20 +754,58 @@ function FirstPersonHands({ activeGesture, handHoldingRef }) {
       leftGroupRef.current.position.y += Math.cos(t * 1.1) * 0.001;
     }
 
-    const fLerp = delta * 10;
-    const animateFinger = (ref, target) => {
-      if (ref.current) ref.current.rotation.x += (target - ref.current.rotation.x) * fLerp;
+    // Staggered finger lerp rates — thumb/index fastest (they lead the grip)
+    const fBase = delta * 10;
+    const fRates = {
+      rT: fBase * 1.4, rI: fBase * 1.2, rM: fBase * 1.0, rR: fBase * 0.85, rP: fBase * 0.7,
+      lT: fBase * 1.0, lI: fBase * 1.0, lM: fBase * 1.0, lR: fBase * 1.0, lP: fBase * 1.0,
     };
-    animateFinger(rThumbRef, ft.rT);
-    animateFinger(rIndexRef, ft.rI);
-    animateFinger(rMiddleRef, ft.rM);
-    animateFinger(rRingRef, ft.rR);
-    animateFinger(rPinkyRef, ft.rP);
-    animateFinger(lThumbRef, ft.lT);
-    animateFinger(lIndexRef, ft.lI);
-    animateFinger(lMiddleRef, ft.lM);
-    animateFinger(lRingRef, ft.lR);
-    animateFinger(lPinkyRef, ft.lP);
+
+    const fingerDelayBias = (key, baseTarget) => {
+      if (!isPour) return baseTarget;
+      const isGrip = pourPhaseRef.current === 'grip';
+      const isRelease = pourPhaseRef.current === 'release';
+      if (!isGrip && !isRelease) return baseTarget;
+
+      const elapsed = phaseTimerRef.current;
+
+      if (isGrip) {
+        const delays = { rT: 0, rI: 0.03, rM: 0.06, rR: 0.09, rP: 0.12 };
+        const delay = delays[key] || 0;
+        if (elapsed < delay) return 0.2;
+        const fingerProgress = Math.min((elapsed - delay) / (0.4 - delay), 1);
+        const fEase = 1 - Math.pow(1 - fingerProgress, 3);
+        return 0.2 + (baseTarget - 0.2) * fEase;
+      }
+
+      if (isRelease) {
+        const revDelays = { rT: 0.12, rI: 0.09, rM: 0.06, rR: 0.03, rP: 0 };
+        const revDelay = revDelays[key] || 0;
+        if (elapsed < revDelay) return baseTarget;
+        const fingerProgress = Math.min((elapsed - revDelay) / (1.0 - revDelay), 1);
+        const fEase = 1 - Math.pow(1 - fingerProgress, 3);
+        const pourCurl = { rT: 0.9, rI: 0.8, rM: 0.75, rR: 0.7, rP: 0.6 };
+        return pourCurl[key] + (baseTarget - pourCurl[key]) * fEase;
+      }
+      return baseTarget;
+    };
+
+    const animateFinger = (ref, target, key) => {
+      if (ref.current) {
+        const biasedTarget = fingerDelayBias(key, target);
+        ref.current.rotation.x += (biasedTarget - ref.current.rotation.x) * fRates[key];
+      }
+    };
+    animateFinger(rThumbRef, ft.rT, 'rT');
+    animateFinger(rIndexRef, ft.rI, 'rI');
+    animateFinger(rMiddleRef, ft.rM, 'rM');
+    animateFinger(rRingRef, ft.rR, 'rR');
+    animateFinger(rPinkyRef, ft.rP, 'rP');
+    animateFinger(lThumbRef, ft.lT, 'lT');
+    animateFinger(lIndexRef, ft.lI, 'lI');
+    animateFinger(lMiddleRef, ft.lM, 'lM');
+    animateFinger(lRingRef, ft.lR, 'lR');
+    animateFinger(lPinkyRef, ft.lP, 'lP');
 
     } catch (e) { /* prevent animation errors from crashing render loop */ }
   });
